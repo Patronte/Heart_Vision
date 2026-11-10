@@ -1,15 +1,26 @@
 
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score)
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
+# HEARTVISION - GESTIONE DATASET, MACHINE LEARNING E PREVISIONI
 
-colonne = [
+
+# IMPORTAZIONE DELLE LIBRERIE
+
+from sklearn.neighbors import KNeighborsClassifier  # Importa il classificatore KNN
+from sklearn.preprocessing import StandardScaler  # Importa lo standardizzatore
+from sklearn.tree import DecisionTreeClassifier  # Importa l'albero decisionale
+from sklearn.ensemble import RandomForestClassifier  # Importa la Random Forest
+from sklearn.model_selection import StratifiedKFold  # Importa la cross-validation stratificata
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+)
+
+import matplotlib.pyplot as plt  # Gestisce i grafici
+import pandas as pd  # Gestisce i DataFrame
+import numpy as np  # Gestisce le operazioni numeriche
+
+
+# DEFINIZIONE DELLE COLONNE
+
+colonne = [  # Definisce le caratteristiche comuni ai due CSV
     "sesso",
     "eta",
     "fumatore",
@@ -27,23 +38,18 @@ colonne = [
     "sport"
 ]
 
-# Variabile da prevedere, presente solo nel dataset storico.
-target = "evento_coronarico_10_anni"
+target = "evento_coronarico_10_anni"  # Variabile da prevedere
 
-def converti_questionario(df):
 
-    # Copiamo il DataFrame per non modificare l'originale.
-    df = df.copy()
+# CONVERSIONE DEL QUESTIONARIO
 
-    # Eliminiamo eventuali spazi nelle intestazioni.
-    df.columns = df.columns.str.strip()
+def converti_questionario(df):  # Converte le risposte di Google Forms
 
-    # --------------------------------------------------------
-    # 2.1 ELIMINAZIONE DEI METADATI
-    # --------------------------------------------------------
+    df = df.copy()  # Crea una copia del DataFrame
 
-    # Data ed email non servono al Machine Learning.
-    metadati = [
+    df.columns = df.columns.str.strip()  # Elimina gli spazi dalle intestazioni
+
+    metadati = [  # Elenca le colonne non utilizzate dal modello
         "timestamp",
         "username",
         "email",
@@ -51,38 +57,24 @@ def converti_questionario(df):
         "indirizzo email"
     ]
 
-    # Individuiamo le colonne da eliminare.
     da_eliminare = [
         c for c in df.columns
-        if c.lower() in metadati
+        if c.lower() in metadati  # Individua le colonne contenenti metadati
     ]
 
-    # Eliminiamo le colonne individuate.
-    df = df.drop(columns=da_eliminare)
+    df = df.drop(columns=da_eliminare)  # Rimuove data ed email
 
-    # --------------------------------------------------------
-    # 2.2 CONTROLLO DEL NUMERO DI COLONNE
-    # --------------------------------------------------------
-
-    # Il questionario deve contenere esattamente 15 risposte.
-    if len(df.columns) != len(colonne):
+    if len(df.columns) != len(colonne):  # Verifica che siano presenti 15 risposte
         raise ValueError(
             "Il questionario deve contenere 15 colonne!"
         )
 
-    # Se i nomi sono già corretti, ordiniamo le colonne.
-    # Altrimenti assegniamo i nomi in base all'ordine del Form.
-    if set(df.columns) == set(colonne):
-        df = df[colonne]
+    if set(df.columns) == set(colonne):  # Controlla se i nomi delle colonne sono corretti
+        df = df[colonne]  # Riordina le colonne
     else:
-        df.columns = colonne
+        df.columns = colonne  # Assegna i nomi secondo l'ordine del questionario
 
-    # --------------------------------------------------------
-    # 2.3 CONVERSIONE DELLE RISPOSTE
-    # --------------------------------------------------------
-
-    # Dizionario per trasformare le risposte in 0 e 1.
-    conversioni = {
+    conversioni = {  # Definisce le sostituzioni delle risposte testuali
         "maschio": "1",
         "femmina": "0",
         "si": "1",
@@ -92,96 +84,74 @@ def converti_questionario(df):
         "n": "0"
     }
 
-    # Scorriamo tutte le colonne del questionario.
-    for colonna in colonne:
+    for colonna in colonne:  # Scorre tutte le caratteristiche
 
-        # Convertiamo in stringa, eliminiamo gli spazi
-        # e trasformiamo le lettere in minuscolo.
         valori = (
             df[colonna]
-            .astype("string")
-            .str.strip()
-            .str.lower()
+            .astype("string")  # Converte i valori in stringhe
+            .str.strip()  # Elimina gli spazi
+            .str.lower()  # Trasforma le lettere in minuscolo
         )
 
-        # Sostituiamo le risposte testuali.
-        valori = valori.replace(conversioni)
+        valori = valori.replace(conversioni)  # Sostituisce le risposte con 0 e 1
 
-        # Convertiamo eventuali virgole decimali in punti.
         valori = valori.str.replace(
-            ",", ".", regex=False
+            ",", ".", regex=False  # Converte le virgole decimali in punti
         )
 
-        # Trasformiamo i valori in numeri.
-        # Gli errori diventano NaN e saranno corretti dopo.
         df[colonna] = pd.to_numeric(
             valori,
-            errors="coerce"
+            errors="coerce"  # Trasforma i valori non convertibili in NaN
         )
 
     print("\nQuestionario convertito correttamente!")
 
-    return df
+    return df  # Restituisce il questionario convertito
 
 
-# ============================================================
-# 3. FUNZIONE CONTROLLO E PULIZIA CSV
-# ============================================================
+# CONTROLLO E PULIZIA DEI DATASET
 
 def controllo_csv(df, tipo="storico", riferimento=None):
 
-    # Creiamo una copia del DataFrame.
-    df = df.copy()
+    df = df.copy()  # Crea una copia del DataFrame
 
-    # Eliminiamo gli spazi dai nomi delle colonne.
-    df.columns = df.columns.str.strip()
-
-    # --------------------------------------------------------
-    # 3.1 CONTROLLO DIMENSIONI
-    # --------------------------------------------------------
+    df.columns = df.columns.str.strip()  # Elimina gli spazi nelle intestazioni
 
     print("\n" + "=" * 55)
     print(f"       HEARTVISION - CONTROLLO {tipo.upper()}")
     print("=" * 55)
 
-    print("Righe:", df.shape[0])
-    print("Colonne:", df.shape[1])
+    print("Righe:", df.shape[0])  # Mostra il numero di righe
+    print("Colonne:", df.shape[1])  # Mostra il numero di colonne
 
-    # Controlliamo che il tipo sia corretto.
-    if tipo not in ["storico", "questionario"]:
+    if tipo not in ["storico", "questionario"]:  # Verifica il tipo di dataset
         raise ValueError("Tipo di dataset non valido!")
 
-    # Controlliamo che il DataFrame non sia vuoto.
-    if df.empty:
+    if df.empty:  # Verifica che il dataset non sia vuoto
         raise ValueError("Il DataFrame è vuoto!")
 
-    # Controlliamo eventuali nomi di colonne duplicati.
-    if df.columns.duplicated().any():
+    if df.columns.duplicated().any():  # Controlla eventuali intestazioni duplicate
         raise ValueError(
             "Sono presenti colonne duplicate!"
         )
 
-    # --------------------------------------------------------
-    # 3.2 CONTROLLO COLONNE OBBLIGATORIE
-    # --------------------------------------------------------
 
-    # Lo storico contiene anche la variabile target.
-    if tipo == "storico":
+    # CONTROLLO DELLE COLONNE OBBLIGATORIE
+
+    if tipo == "storico":  # Il dataset storico comprende anche il target
         richieste = colonne + [target]
 
-    # Il questionario contiene soltanto le 15 feature.
     else:
-        richieste = colonne
+        richieste = colonne  # Il questionario contiene soltanto le caratteristiche
 
-        if target in df.columns:
+        if target in df.columns:  # Verifica che il questionario non contenga il target
             raise ValueError(
                 "Il questionario non deve contenere il target!"
             )
 
-    # Individuiamo eventuali colonne mancanti.
     mancanti = [
         c for c in richieste
-        if c not in df.columns
+        if c not in df.columns  # Individua le colonne obbligatorie assenti
     ]
 
     if mancanti:
@@ -189,47 +159,35 @@ def controllo_csv(df, tipo="storico", riferimento=None):
             f"Colonne mancanti: {mancanti}"
         )
 
-    # --------------------------------------------------------
-    # 3.3 CONVERSIONE NUMERICA
-    # --------------------------------------------------------
 
-    # Convertiamo tutte le colonne richieste in numeri.
-    # Usiamo temporaneamente float per consentire
-    # l'inserimento delle medie durante la pulizia.
-    for colonna in richieste:
+    # CONVERSIONE NUMERICA
+
+    for colonna in richieste:  # Converte ogni colonna in numeri
 
         df[colonna] = pd.to_numeric(
             df[colonna],
-            errors="coerce"
+            errors="coerce"  # Converte i valori non validi in NaN
         ).astype(float)
 
-    # Sostituiamo gli infiniti con NaN.
     df[richieste] = df[richieste].replace(
         [np.inf, -np.inf],
-        np.nan
+        np.nan  # Sostituisce i valori infiniti con NaN
     )
 
-    # --------------------------------------------------------
-    # 3.4 DATASET DI RIFERIMENTO
-    # --------------------------------------------------------
 
-    # Per lo storico utilizziamo i suoi valori validi.
-    # Per i questionari possiamo utilizzare il dataset
-    # Framingham già controllato, passato come riferimento.
-    if riferimento is not None:
-        base = riferimento
+    # SELEZIONE DEL DATASET DI RIFERIMENTO
+
+    if riferimento is not None:  # Verifica se è disponibile un dataset di riferimento
+        base = riferimento  # Utilizza il dataset fornito
     else:
-        base = df
+        base = df  # Utilizza il DataFrame corrente
 
-    # Dizionario per registrare tutte le correzioni.
-    correzioni = {}
+    correzioni = {}  # Memorizza il numero delle correzioni
 
-    # --------------------------------------------------------
-    # 3.5 CONTROLLO VARIABILI BINARIE
-    # --------------------------------------------------------
 
-    # Queste colonne possono contenere soltanto 0 oppure 1.
-    binarie = [
+    # CONTROLLO DELLE VARIABILI BINARIE
+
+    binarie = [  # Definisce le colonne che devono contenere 0 oppure 1
         "sesso",
         "fumatore",
         "farmaci_pressione",
@@ -241,53 +199,44 @@ def controllo_csv(df, tipo="storico", riferimento=None):
         "sport"
     ]
 
-    for colonna in binarie:
+    for colonna in binarie:  # Controlla ogni variabile binaria
 
-        # Individuiamo valori diversi da 0 e 1.
-        errati = ~df[colonna].isin([0, 1])
+        errati = ~df[colonna].isin([0, 1])  # Individua i valori diversi da 0 e 1
 
-        if errati.any():
+        if errati.any():  # Procede se sono presenti errori
 
-            # Recuperiamo i valori validi dal riferimento.
             validi = pd.to_numeric(
                 base[colonna],
-                errors="coerce"
+                errors="coerce"  # Converte i valori in numeri
             )
 
-            validi = validi[validi.isin([0, 1])]
+            validi = validi[validi.isin([0, 1])]  # Mantiene soltanto i valori validi
 
-            if validi.empty:
+            if validi.empty:  # Verifica la presenza di valori utilizzabili
                 raise ValueError(
                     f"Nessun valore valido in {colonna}"
                 )
 
-            # Per le variabili binarie utilizziamo la moda.
-            moda = validi.mode().iloc[0]
+            moda = validi.mode().iloc[0]  # Calcola il valore più frequente
 
-            df.loc[errati, colonna] = moda
+            df.loc[errati, colonna] = moda  # Sostituisce i valori errati con la moda
 
-            # Registriamo il numero di correzioni.
-            correzioni[colonna] = int(errati.sum())
+            correzioni[colonna] = int(errati.sum())  # Conta le sostituzioni
 
-    # --------------------------------------------------------
-    # 3.6 CONTROLLO DEL TARGET
-    # --------------------------------------------------------
 
-    # Il target non deve essere corretto con una media:
-    # rappresenta l'esito realmente registrato.
-    if tipo == "storico":
+    # CONTROLLO DELLA VARIABILE TARGET
 
-        if not df[target].isin([0, 1]).all():
+    if tipo == "storico":  # Controlla il target soltanto nello storico
+
+        if not df[target].isin([0, 1]).all():  # Verifica che gli esiti siano 0 oppure 1
             raise ValueError(
                 "Il target contiene valori mancanti o non validi!"
             )
 
-    # --------------------------------------------------------
-    # 3.7 CONTROLLO INTERVALLI NUMERICI
-    # --------------------------------------------------------
 
-    # Definiamo gli intervalli accettati dal programma.
-    intervalli = {
+    # CONTROLLO DEGLI INTERVALLI NUMERICI
+
+    intervalli = {  # Definisce gli intervalli ammessi
         "eta": (5, 100),
         "sigarette_giorno": (0, 60),
         "peso_kg": (20, 200),
@@ -296,173 +245,138 @@ def controllo_csv(df, tipo="storico", riferimento=None):
         "sere_alcol_settimana": (0, 7)
     }
 
-    # Colonne che devono contenere numeri interi.
-    intere = [
+    intere = [  # Definisce le colonne che richiedono numeri interi
         "eta",
         "sigarette_giorno",
         "sere_alcol_settimana"
     ]
 
-    # Controlliamo ogni colonna numerica.
-    for colonna, (minimo, massimo) in intervalli.items():
+    for colonna, (minimo, massimo) in intervalli.items():  # Controlla ogni intervallo
 
-        valori = df[colonna]
+        valori = df[colonna]  # Recupera i valori della colonna
 
-        # Individuiamo valori nulli o fuori intervallo.
         errati = (
-            valori.isna() |
-            ~valori.between(minimo, massimo)
+            valori.isna() |  # Individua i valori mancanti
+            ~valori.between(minimo, massimo)  # Individua i valori fuori intervallo
         )
 
-        # Se la colonna richiede interi,
-        # consideriamo errati anche i numeri decimali.
-        if colonna in intere:
-            errati = errati | (valori % 1 != 0)
+        if colonna in intere:  # Verifica se sono richiesti numeri interi
+            errati = errati | (valori % 1 != 0)  # Individua i valori decimali
 
-        # Se ci sono errori, procediamo alla correzione.
-        if errati.any():
+        if errati.any():  # Procede se trova valori da correggere
 
-            # Prendiamo i valori dal dataset di riferimento.
             validi = pd.to_numeric(
                 base[colonna],
-                errors="coerce"
+                errors="coerce"  # Converte i valori di riferimento
             )
 
-            # Eliminiamo infiniti e valori non validi.
             validi = validi.replace(
                 [np.inf, -np.inf],
-                np.nan
+                np.nan  # Esclude gli infiniti
             )
 
-            # Conserviamo soltanto i valori nell'intervallo.
             validi = validi[
-                validi.between(minimo, massimo)
+                validi.between(minimo, massimo)  # Mantiene i valori nell'intervallo
             ]
 
-            # Per le colonne intere escludiamo i decimali.
-            if colonna in intere:
-                validi = validi[validi % 1 == 0]
+            if colonna in intere:  # Controlla le colonne intere
+                validi = validi[validi % 1 == 0]  # Esclude i valori decimali
 
-            # Verifichiamo che sia possibile calcolare la media.
-            if validi.empty:
+            if validi.empty:  # Verifica che esistano dati validi
                 raise ValueError(
                     f"Impossibile calcolare la media di {colonna}"
                 )
 
-            # Calcoliamo la media dei valori validi.
-            media = validi.mean()
+            media = validi.mean()  # Calcola la media dei valori validi
 
-            # Arrotondiamo la media per le colonne intere.
-            if colonna in intere:
-                media = int(round(media))
+            if colonna in intere:  # Controlla se la colonna richiede interi
+                media = int(round(media))  # Arrotonda la media
 
-            # Sostituiamo i valori errati con la media.
-            df.loc[errati, colonna] = media
+            df.loc[errati, colonna] = media  # Sostituisce gli errori con la media
 
-            # Registriamo le correzioni effettuate.
-            correzioni[colonna] = int(errati.sum())
+            correzioni[colonna] = int(errati.sum())  # Registra le correzioni
 
-    # --------------------------------------------------------
-    # 3.8 CONTROLLO COERENZA DEL FUMO
-    # --------------------------------------------------------
 
-    # Un non fumatore non può avere sigarette giornaliere
-    # maggiori di zero.
+    # CONTROLLO DELLA COERENZA DEL FUMO
+
     errore_fumo = (
-        (df["fumatore"] == 0) &
-        (df["sigarette_giorno"] > 0)
+        (df["fumatore"] == 0) &  # Individua i non fumatori
+        (df["sigarette_giorno"] > 0)  # Che indicano sigarette giornaliere
     )
 
-    if errore_fumo.any():
+    if errore_fumo.any():  # Verifica la presenza di incoerenze
 
-        # Per i non fumatori il numero coerente
-        # di sigarette giornaliere è zero.
-        df.loc[errore_fumo, "sigarette_giorno"] = 0
+        df.loc[errore_fumo, "sigarette_giorno"] = 0  # Imposta zero sigarette
 
         correzioni["coerenza_fumo"] = int(
-            errore_fumo.sum()
+            errore_fumo.sum()  # Conta le correzioni
         )
 
-    # --------------------------------------------------------
-    # 3.9 CONTROLLO COERENZA DELL'ALCOL
-    # --------------------------------------------------------
 
-    # Chi dichiara di non bere deve avere zero
-    # sere settimanali di consumo.
+    # CONTROLLO DELLA COERENZA DELL'ALCOL
+
     errore_alcol = (
-        (df["alcol"] == 0) &
-        (df["sere_alcol_settimana"] > 0)
+        (df["alcol"] == 0) &  # Individua chi dichiara di non bere
+        (df["sere_alcol_settimana"] > 0)  # Ma indica sere di consumo
     )
 
-    if errore_alcol.any():
+    if errore_alcol.any():  # Verifica la presenza di incoerenze
 
         df.loc[
             errore_alcol,
             "sere_alcol_settimana"
-        ] = 0
+        ] = 0  # Imposta zero sere di consumo
 
         correzioni["coerenza_alcol"] = int(
-            errore_alcol.sum()
+            errore_alcol.sum()  # Conta le correzioni
         )
 
-    # --------------------------------------------------------
-    # 3.10 CONTROLLO FINALE DEI VALORI NULLI
-    # --------------------------------------------------------
 
-    # Verifichiamo che non rimangano valori mancanti
-    # nelle colonne necessarie.
-    if df[richieste].isnull().any().any():
+    # VERIFICA FINALE DEI VALORI MANCANTI
+
+    if df[richieste].isnull().any().any():  # Controlla la presenza di NaN
         raise ValueError(
             "Sono rimasti valori mancanti nel dataset!"
         )
 
-    # --------------------------------------------------------
-    # 3.11 CONTROLLO DELLE RIGHE DUPLICATE
-    # --------------------------------------------------------
 
-    # Contiamo i duplicati senza eliminarli.
-    # Due persone possono avere le stesse caratteristiche.
-    duplicati = df[richieste].duplicated().sum()
+    # CONTROLLO DELLE RIGHE DUPLICATE
+
+    duplicati = df[richieste].duplicated().sum()  # Conta le righe identiche
 
     print("\nRighe con valori identici:", duplicati)
 
-    # --------------------------------------------------------
-    # 3.12 CALCOLO AUTOMATICO DEL BMI
-    # --------------------------------------------------------
 
-    # Calcoliamo il BMI dopo aver corretto altezza e peso.
+    # CALCOLO AUTOMATICO DEL BMI
+
     df["bmi"] = (
-        df["peso_kg"] /
-        (df["altezza_cm"] / 100) ** 2
-    ).round(2)
+        df["peso_kg"] /  # Recupera il peso in chilogrammi
+        (df["altezza_cm"] / 100) ** 2  # Converte l'altezza in metri
+    ).round(2)  # Arrotonda il BMI a due decimali
 
-    # --------------------------------------------------------
-    # 3.13 RIPRISTINO DEI NUMERI INTERI
-    # --------------------------------------------------------
 
-    # Dopo le correzioni riportiamo le variabili intere
-    # al loro tipo numerico corretto.
-    colonne_intere = binarie + intere
+    # RIPRISTINO DEI NUMERI INTERI
 
-    if tipo == "storico":
-        colonne_intere.append(target)
+    colonne_intere = binarie + intere  # Unisce le variabili binarie e intere
 
-    for colonna in colonne_intere:
-        df[colonna] = df[colonna].astype(int)
+    if tipo == "storico":  # Verifica se stiamo controllando Framingham
+        colonne_intere.append(target)  # Aggiunge il target
 
-    # --------------------------------------------------------
-    # 3.14 RIEPILOGO DELLA PULIZIA
-    # --------------------------------------------------------
+    for colonna in colonne_intere:  # Scorre le colonne intere
+        df[colonna] = df[colonna].astype(int)  # Converte i valori in interi
+
+
+    # RIEPILOGO DELLA PULIZIA
 
     print("\n" + "-" * 55)
     print("                RISULTATO PULIZIA")
     print("-" * 55)
 
-    if correzioni:
+    if correzioni:  # Controlla se sono state effettuate correzioni
 
         print("\nCorrezioni effettuate:")
 
-        for nome, quantita in correzioni.items():
+        for nome, quantita in correzioni.items():  # Scorre le correzioni registrate
             print(f"  {nome}: {quantita}")
 
     else:
@@ -471,275 +385,170 @@ def controllo_csv(df, tipo="storico", riferimento=None):
     print("\nValori nulli rimasti: 0")
     print("BMI calcolato correttamente.")
     print("\nDataset pronto per l'analisi!")
-
     print("=" * 55)
 
-    return df
+    return df  # Restituisce il dataset pulito
 
-def carica_dataset():
-    """Carica e pulisce dataset storico e questionari."""
-    global df_X, df_y
+
+# CARICAMENTO DEL DATASET STORICO E DEI QUESTIONARI
+
+def carica_dataset():  # Importa e prepara entrambi i dataset
+
+    global df_X, df_y  # Rende accessibili i DataFrame alle altre funzioni
+
     df_X = pd.read_csv(
-        "Dataset_storico/HEARTVISION_dataset_completo.csv"
+        "Dataset_storico/HEARTVISION_dataset_completo.csv"  # Legge Framingham
     )
 
-    # Eseguiamo il controllo e la pulizia.
     df_X = controllo_csv(
         df_X,
-        tipo="storico"
+        tipo="storico"  # Controlla e pulisce il dataset storico
     )
 
-
-    # ============================================================
-    # 5. CARICAMENTO DEL DATASET QUESTIONARI
-    # ============================================================
-
-    # Importiamo le risposte esportate da Google Forms.
     df_y = pd.read_csv(
-        "Dataset_questionari/Framingham_form.csv"
+        "Dataset_questionari/Framingham_form.csv"  # Legge Google Forms
     )
 
-    # Convertiamo le risposte testuali in valori numerici.
-    df_y = converti_questionario(df_y)
+    df_y = converti_questionario(df_y)  # Converte le risposte testuali
 
-    # Controlliamo il nuovo dataset.
-    # Le medie vengono prese dal Framingham già pulito.
     df_y = controllo_csv(
         df_y,
         tipo="questionario",
-        riferimento=df_X
+        riferimento=df_X  # Utilizza Framingham come riferimento
     )
 
-
-    # ============================================================
-    # 6. VISUALIZZAZIONE FINALE
-    # ============================================================
-
-    # Mostriamo le prime righe del dataset storico.
     print("\n" + "=" * 55)
     print("              DATASET FRAMINGHAM")
     print("=" * 55)
-    print(df_X.head())
+    print(df_X.head())  # Mostra le prime cinque righe
 
-    # Mostriamo le prime righe dei questionari.
     print("\n" + "=" * 55)
     print("              DATASET QUESTIONARI")
     print("=" * 55)
-    print(df_y.head())
+    print(df_y.head())  # Mostra le prime cinque risposte
 
     print("\nHEARTVISION - Operazioni completate!")
     print("\nCaricamento completato.")
 
 
-def esegui_confronto_modelli():
-    """Esegue la cross-validation e prepara il confronto dei modelli."""
+# CONFRONTO DEGLI ALGORITMI MACHINE LEARNING
+
+def esegui_confronto_modelli():  # Valuta KNN, Decision Tree e Random Forest
+
     global X_train, y_train, X_test, cv, risultati_cv, confronto
     global metriche, parametri, indici_migliori, migliori_modelli
-    X_train = df_X[colonne + ["bmi"]]
 
-    # y_train contiene i risultati storici conosciuti:
-    # 0 = nessun evento coronarico registrato
-    # 1 = evento coronarico registrato entro 10 anni
-
-    y_train = df_X[target]
-
-    # X_test contiene le caratteristiche dei nuovi utenti.
-    # Non utilizziamo questi dati per addestrare o confrontare
-    # gli algoritmi.
-
-    X_test = df_y[colonne + ["bmi"]]
+    X_train = df_X[colonne + ["bmi"]]  # Seleziona le caratteristiche dello storico
+    y_train = df_X[target]  # Seleziona gli eventi coronarici osservati
+    X_test = df_y[colonne + ["bmi"]]  # Seleziona le caratteristiche dei questionari
 
 
-    # ============================================================
-    # 7.2 PREPARAZIONE DELLA CROSS VALIDATION
-    # ============================================================
-
-    # Dividiamo temporaneamente i dati storici in 5 gruppi.
-    #
-    # A ogni iterazione:
-    # - 4 gruppi vengono utilizzati per addestrare il modello.
-    # - 1 gruppo viene utilizzato per valutarlo.
-    #
-    # La procedura viene ripetuta 5 volte, cambiando il gruppo
-    # utilizzato per la valutazione.
-    #
-    # In questo modo tutti i pazienti storici vengono valutati.
-    # I nuovi questionari (X_test) restano esclusi.
+    # PREPARAZIONE DELLA CROSS-VALIDATION
 
     cv = StratifiedKFold(
-        n_splits=5,
-        shuffle=True,
-        random_state=42
+        n_splits=5,  # Divide i dati in cinque gruppi
+        shuffle=True,  # Mescola le osservazioni
+        random_state=42  # Rende riproducibile la suddivisione
     )
 
-    # Qui raccogliamo i risultati di tutte le configurazioni.
-
-    risultati_cv = []
+    risultati_cv = []  # Raccoglie i risultati delle configurazioni
 
 
-    # ============================================================
-    # 7.3 K NEAREST NEIGHBORS (KNN)
-    # ============================================================
+    # CROSS-VALIDATION KNN
 
-    # Proviamo diversi valori di K.
-    # K indica il numero di pazienti storici più vicini
-    # utilizzati per classificare un nuovo paziente.
+    valori_k = [3, 5, 7, 9, 11, 15]  # Definisce i numeri di vicini da provare
 
-    valori_k = [3, 5, 7, 9, 11, 15]
+    for k in valori_k:  # Prova ogni valore di K
 
-    for k in valori_k:
+        for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
 
-        # Ripetiamo la valutazione sui 5 gruppi.
+            X_fold_train = X_train.iloc[indice_train]  # Estrae il training
+            X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
 
-        for indice_train, indice_val in cv.split(X_train, y_train):
+            y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
+            y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
 
-            # Selezioniamo i dati di addestramento e valutazione.
+            scaler_fold = StandardScaler()  # Crea lo standardizzatore
 
-            X_fold_train = X_train.iloc[indice_train]
-            X_fold_val = X_train.iloc[indice_val]
-
-            y_fold_train = y_train.iloc[indice_train]
-            y_fold_val = y_train.iloc[indice_val]
-
-
-            # NORMALIZZAZIONE
-
-            # KNN utilizza le distanze tra i pazienti.
-            # Per questo motivo dobbiamo normalizzare le variabili.
-
-            scaler_fold = StandardScaler()
-
-            # Impariamo media e deviazione standard
-            # esclusivamente dai dati di addestramento.
-
-            X_fold_train = scaler_fold.fit_transform(X_fold_train)
-
-            # Applichiamo la stessa trasformazione ai dati
-            # utilizzati per la valutazione.
-
-            X_fold_val = scaler_fold.transform(X_fold_val)
-
-
-            # CREAZIONE DEL MODELLO
+            X_fold_train = scaler_fold.fit_transform(X_fold_train)  # Standardizza il training
+            X_fold_val = scaler_fold.transform(X_fold_val)  # Standardizza la validazione
 
             modello = KNeighborsClassifier(
-                n_neighbors=k
+                n_neighbors=k  # Imposta il valore di K corrente
             )
 
+            modello.fit(X_fold_train, y_fold_train)  # Addestra il KNN
 
-            # ADDESTRAMENTO
+            previsioni = modello.predict(X_fold_val)  # Prevede le classi
+            probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
 
-            modello.fit(X_fold_train, y_fold_train)
+            indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
+            probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
 
-
-            # PREVISIONI
-
-            previsioni = modello.predict(X_fold_val)
-
-            probabilita = modello.predict_proba(X_fold_val)
-
-            indice_evento = list(modello.classes_).index(1)
-
-            probabilita_evento = probabilita[:, indice_evento]
-
-
-            # CALCOLO DELLE METRICHE
-
-            risultati_cv.append({
+            risultati_cv.append({  # Registra le metriche del fold
 
                 "algoritmo": "KNN",
-
                 "configurazione": f"K={k}",
-
                 "k": k,
-
                 "criterio": None,
-
                 "max_depth": None,
-
                 "n_estimators": None,
 
                 "accuracy": accuracy_score(
-                    y_fold_val, previsioni
+                    y_fold_val, previsioni  # Calcola l'accuracy
                 ),
 
                 "precision": precision_score(
-                    y_fold_val, previsioni, zero_division=0
+                    y_fold_val, previsioni, zero_division=0  # Calcola la precision
                 ),
 
                 "recall": recall_score(
-                    y_fold_val, previsioni, zero_division=0
+                    y_fold_val, previsioni, zero_division=0  # Calcola il recall
                 ),
 
                 "f1_score": f1_score(
-                    y_fold_val, previsioni, zero_division=0
+                    y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
                 ),
 
                 "roc_auc": roc_auc_score(
-                    y_fold_val, probabilita_evento
+                    y_fold_val, probabilita_evento  # Calcola la ROC-AUC
                 )
 
             })
 
 
-    # ============================================================
-    # 7.4 DECISION TREE CLASSIFIER
-    # ============================================================
+    # CROSS-VALIDATION DECISION TREE
 
-    # Proviamo due criteri di divisione:
-    # Gini ed Entropy.
-    #
-    # Proviamo inoltre diverse profondità dell'albero.
-    # None significa che non imponiamo un limite alla profondità.
+    criteri = ["gini", "entropy"]  # Definisce i criteri da confrontare
+    profondita_alberi = [3, 5, 10, None]  # Definisce le profondità da confrontare
 
-    criteri = ["gini", "entropy"]
+    for criterio in criteri:  # Prova ogni criterio
 
-    profondita_alberi = [3, 5, 10, None]
+        for profondita in profondita_alberi:  # Prova ogni profondità
 
+            for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
 
-    for criterio in criteri:
+                X_fold_train = X_train.iloc[indice_train]  # Estrae il training
+                X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
 
-        for profondita in profondita_alberi:
-
-            for indice_train, indice_val in cv.split(X_train, y_train):
-
-                # SEPARAZIONE DEI GRUPPI
-
-                X_fold_train = X_train.iloc[indice_train]
-                X_fold_val = X_train.iloc[indice_val]
-
-                y_fold_train = y_train.iloc[indice_train]
-                y_fold_val = y_train.iloc[indice_val]
-
-
-                # CREAZIONE DEL MODELLO
+                y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
+                y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
 
                 modello = DecisionTreeClassifier(
-                    criterion=criterio,
-                    max_depth=profondita,
-                    random_state=42
+                    criterion=criterio,  # Utilizza Gini oppure Entropy
+                    max_depth=profondita,  # Imposta la profondità
+                    random_state=42  # Rende riproducibile il modello
                 )
 
+                modello.fit(X_fold_train, y_fold_train)  # Addestra l'albero
 
-                # ADDESTRAMENTO
+                previsioni = modello.predict(X_fold_val)  # Prevede le classi
+                probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
 
-                modello.fit(X_fold_train, y_fold_train)
+                indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
+                probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
 
-
-                # PREVISIONI
-
-                previsioni = modello.predict(X_fold_val)
-
-                probabilita = modello.predict_proba(X_fold_val)
-
-                indice_evento = list(modello.classes_).index(1)
-
-                probabilita_evento = probabilita[:, indice_evento]
-
-
-                # CALCOLO DELLE METRICHE
-
-                risultati_cv.append({
+                risultati_cv.append({  # Registra le metriche del fold
 
                     "algoritmo": "Decision Tree",
 
@@ -748,95 +557,66 @@ def esegui_confronto_modelli():
                     ),
 
                     "k": None,
-
                     "criterio": criterio,
-
                     "max_depth": profondita,
-
                     "n_estimators": None,
 
                     "accuracy": accuracy_score(
-                        y_fold_val, previsioni
+                        y_fold_val, previsioni  # Calcola l'accuracy
                     ),
 
                     "precision": precision_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola la precision
                     ),
 
                     "recall": recall_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola il recall
                     ),
 
                     "f1_score": f1_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
                     ),
 
                     "roc_auc": roc_auc_score(
-                        y_fold_val, probabilita_evento
+                        y_fold_val, probabilita_evento  # Calcola la ROC-AUC
                     )
 
                 })
 
 
-    # ============================================================
-    # 7.5 RANDOM FOREST CLASSIFIER
-    # ============================================================
+    # CROSS-VALIDATION RANDOM FOREST
 
-    # Proviamo diverse quantità di alberi:
-    # 100, 200 e 300.
-    #
-    # Proviamo anche diverse profondità.
-    # Ogni configurazione viene valutata sui 5 gruppi.
+    numero_alberi = [100, 200, 300]  # Definisce il numero di alberi
+    profondita_foresta = [5, 10, None]  # Definisce le profondità
 
-    numero_alberi = [100, 200, 300]
+    for numero in numero_alberi:  # Prova ogni numero di alberi
 
-    profondita_foresta = [5, 10, None]
+        for profondita in profondita_foresta:  # Prova ogni profondità
 
+            for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
 
-    for numero in numero_alberi:
+                X_fold_train = X_train.iloc[indice_train]  # Estrae il training
+                X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
 
-        for profondita in profondita_foresta:
-
-            for indice_train, indice_val in cv.split(X_train, y_train):
-
-                # SEPARAZIONE DEI GRUPPI
-
-                X_fold_train = X_train.iloc[indice_train]
-                X_fold_val = X_train.iloc[indice_val]
-
-                y_fold_train = y_train.iloc[indice_train]
-                y_fold_val = y_train.iloc[indice_val]
-
-
-                # CREAZIONE DEL MODELLO
+                y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
+                y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
 
                 modello = RandomForestClassifier(
-                    n_estimators=numero,
-                    max_depth=profondita,
-                    random_state=42,
-                    n_jobs=-1
+                    n_estimators=numero,  # Imposta il numero di alberi
+                    max_depth=profondita,  # Imposta la profondità
+                    random_state=42,  # Rende riproducibile il modello
+                    n_jobs=-1  # Utilizza tutti i processori disponibili
                 )
 
+                modello.fit(X_fold_train, y_fold_train)  # Addestra la foresta
 
-                # ADDESTRAMENTO
+                previsioni = modello.predict(X_fold_val)  # Prevede le classi
+                probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
 
-                modello.fit(X_fold_train, y_fold_train)
+                indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
+                probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
 
-
-                # PREVISIONI
-
-                previsioni = modello.predict(X_fold_val)
-
-                probabilita = modello.predict_proba(X_fold_val)
-
-                indice_evento = list(modello.classes_).index(1)
-
-                probabilita_evento = probabilita[:, indice_evento]
-
-
-                # CALCOLO DELLE METRICHE
-
-                risultati_cv.append({
+                risultati_cv.append({  # Registra le metriche del fold
 
                     "algoritmo": "Random Forest",
 
@@ -845,47 +625,38 @@ def esegui_confronto_modelli():
                     ),
 
                     "k": None,
-
                     "criterio": None,
-
                     "max_depth": profondita,
-
                     "n_estimators": numero,
 
                     "accuracy": accuracy_score(
-                        y_fold_val, previsioni
+                        y_fold_val, previsioni  # Calcola l'accuracy
                     ),
 
                     "precision": precision_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola la precision
                     ),
 
                     "recall": recall_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola il recall
                     ),
 
                     "f1_score": f1_score(
-                        y_fold_val, previsioni, zero_division=0
+                        y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
                     ),
 
                     "roc_auc": roc_auc_score(
-                        y_fold_val, probabilita_evento
+                        y_fold_val, probabilita_evento  # Calcola la ROC-AUC
                     )
 
                 })
 
 
-    # ============================================================
-    # 7.6 CONFRONTO DEI RISULTATI
-    # ============================================================
+    # CONFRONTO DELLE METRICHE
 
-    # Trasformiamo tutti i risultati in un DataFrame.
+    df_risultati = pd.DataFrame(risultati_cv)  # Trasforma le valutazioni in un DataFrame
 
-    df_risultati = pd.DataFrame(risultati_cv)
-
-    # Elenco delle metriche da confrontare.
-
-    metriche = [
+    metriche = [  # Elenca le metriche da confrontare
         "accuracy",
         "precision",
         "recall",
@@ -893,17 +664,12 @@ def esegui_confronto_modelli():
         "roc_auc"
     ]
 
-    # Calcoliamo la media delle 5 valutazioni
-    # per ogni configurazione.
-
     confronto = (
         df_risultati
-        .groupby(["algoritmo", "configurazione"])[metriche]
-        .mean()
-        .reset_index()
+        .groupby(["algoritmo", "configurazione"])[metriche]  # Raggruppa le configurazioni
+        .mean()  # Calcola le medie sui cinque fold
+        .reset_index()  # Ripristina l'indice
     )
-
-    # Recuperiamo i parametri utilizzati da ogni configurazione.
 
     parametri = (
         df_risultati[
@@ -916,47 +682,39 @@ def esegui_confronto_modelli():
                 "n_estimators"
             ]
         ]
-        .drop_duplicates()
+        .drop_duplicates()  # Elimina le configurazioni ripetute
     )
 
     confronto = confronto.merge(
         parametri,
-        on=["algoritmo", "configurazione"]
+        on=["algoritmo", "configurazione"]  # Unisce metriche e parametri
     )
 
-    # Arrotondiamo i risultati.
-
-    confronto[metriche] = confronto[metriche].round(3)
-
-    # Ordiniamo le configurazioni in base a F1 Score.
+    confronto[metriche] = confronto[metriche].round(3)  # Arrotonda le metriche
 
     confronto = confronto.sort_values(
-        by="f1_score",
-        ascending=False
+        by="f1_score",  # Ordina secondo l'F1-score
+        ascending=False  # Mostra prima i valori più alti
     )
 
     print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")
-    print(confronto.to_string(index=False))
+    print(confronto.to_string(index=False))  # Mostra la tabella completa
 
 
-    # ============================================================
-    # 7.7 MIGLIOR CONFIGURAZIONE PER OGNI ALGORITMO
-    # ============================================================
-
-    # Per ogni algoritmo individuiamo la configurazione
-    # con il miglior F1 Score medio.
+    # SELEZIONE DELLE CONFIGURAZIONI MIGLIORI
 
     indici_migliori = (
         confronto
-        .groupby("algoritmo")["f1_score"]
-        .idxmax()
+        .groupby("algoritmo")["f1_score"]  # Raggruppa per algoritmo
+        .idxmax()  # Individua il migliore F1-score
     )
 
     migliori_modelli = confronto.loc[
         indici_migliori
-    ].reset_index(drop=True)
+    ].reset_index(drop=True)  # Crea la tabella delle configurazioni migliori
 
     print("\nMIGLIORE CONFIGURAZIONE PER OGNI ALGORITMO:")
+
     print(
         migliori_modelli[
             ["algoritmo", "configurazione"] + metriche
@@ -964,218 +722,213 @@ def esegui_confronto_modelli():
     )
 
 
-def esegui_previsioni():
-    """Addestra il modello scelto e calcola le previsioni sui questionari."""
-    if "confronto" not in globals():
+# ADDESTRAMENTO DEFINITIVO E PREVISIONI
+
+def esegui_previsioni():  # Addestra il modello selezionato
+
+    if "confronto" not in globals():  # Verifica che il confronto sia stato eseguito
         print("Prima esegui il confronto dei modelli (opzione 2).")
         return
-    # Dopo aver osservato la tabella e i grafici,
-    # scegliamo quale algoritmo utilizzare.
-    #
-    # Possibili valori:
-    # "KNN"
-    # "Decision Tree"
-    # "Random Forest"
 
     print("\nScegli il modello da utilizzare:")
     print("1. KNN")
     print("2. Decision Tree")
     print("3. Random Forest")
-    scelta = input("Seleziona (1-3): ").strip()
-    modelli = {"1": "KNN", "2": "Decision Tree", "3": "Random Forest"}
-    modello_scelto = modelli.get(scelta)
-    if modello_scelto is None:
+
+    scelta = input("Seleziona (1-3): ").strip()  # Legge la scelta
+
+    modelli = {  # Associa le opzioni agli algoritmi
+        "1": "KNN",
+        "2": "Decision Tree",
+        "3": "Random Forest"
+    }
+
+    modello_scelto = modelli.get(scelta)  # Recupera il modello selezionato
+
+    if modello_scelto is None:  # Controlla la scelta dell'utente
         print("Scelta non valida.")
         return
+
     global modello_finale, scaler_finale, risultati, previsioni, probabilita_evento
-
-
-    # Recuperiamo la migliore configurazione F1
-    # dell'algoritmo selezionato.
 
     riga_scelta = migliori_modelli[
         migliori_modelli["algoritmo"] == modello_scelto
-    ].iloc[0]
+    ].iloc[0]  # Recupera i parametri migliori
 
     print("\nMODELLO SELEZIONATO:", modello_scelto)
-
     print("CONFIGURAZIONE:", riga_scelta["configurazione"])
 
 
-    # ============================================================
-    # 7.13 ADDESTRAMENTO DEFINITIVO
-    # ============================================================
+    # CREAZIONE DEL MODELLO DEFINITIVO
 
-    # Creiamo il modello utilizzando i parametri migliori
-    # individuati durante il confronto.
+    if modello_scelto == "KNN":  # Prepara il classificatore KNN
 
-    if modello_scelto == "KNN":
+        scaler_finale = StandardScaler()  # Crea lo scaler finale
 
-        # Normalizziamo tutti i dati storici.
-
-        scaler_finale = StandardScaler()
-
-        X_train_finale = scaler_finale.fit_transform(X_train)
-
-        X_test_finale = scaler_finale.transform(X_test)
+        X_train_finale = scaler_finale.fit_transform(X_train)  # Standardizza lo storico
+        X_test_finale = scaler_finale.transform(X_test)  # Standardizza i questionari
 
         modello_finale = KNeighborsClassifier(
-            n_neighbors=int(riga_scelta["k"])
+            n_neighbors=int(riga_scelta["k"])  # Utilizza il K migliore
         )
 
+    elif modello_scelto == "Decision Tree":  # Prepara il Decision Tree
 
-    elif modello_scelto == "Decision Tree":
+        X_train_finale = X_train  # Utilizza le caratteristiche originali
+        X_test_finale = X_test  # Utilizza i questionari originali
 
-        X_train_finale = X_train
+        profondita = riga_scelta["max_depth"]  # Recupera la profondità migliore
 
-        X_test_finale = X_test
-
-        profondita = riga_scelta["max_depth"]
-
-        if pd.isna(profondita):
+        if pd.isna(profondita):  # Verifica se la profondità è illimitata
             profondita = None
         else:
-            profondita = int(profondita)
+            profondita = int(profondita)  # Converte la profondità in intero
 
         modello_finale = DecisionTreeClassifier(
-            criterion=riga_scelta["criterio"],
-            max_depth=profondita,
-            random_state=42
+            criterion=riga_scelta["criterio"],  # Utilizza il criterio migliore
+            max_depth=profondita,  # Utilizza la profondità migliore
+            random_state=42  # Rende riproducibile il modello
         )
 
+    elif modello_scelto == "Random Forest":  # Prepara la Random Forest
 
-    elif modello_scelto == "Random Forest":
+        X_train_finale = X_train  # Utilizza le caratteristiche originali
+        X_test_finale = X_test  # Utilizza i questionari originali
 
-        X_train_finale = X_train
+        profondita = riga_scelta["max_depth"]  # Recupera la profondità migliore
 
-        X_test_finale = X_test
-
-        profondita = riga_scelta["max_depth"]
-
-        if pd.isna(profondita):
+        if pd.isna(profondita):  # Verifica se la profondità è illimitata
             profondita = None
         else:
-            profondita = int(profondita)
+            profondita = int(profondita)  # Converte la profondità in intero
 
         modello_finale = RandomForestClassifier(
-            n_estimators=int(riga_scelta["n_estimators"]),
-            max_depth=profondita,
-            random_state=42,
-            n_jobs=-1
+            n_estimators=int(riga_scelta["n_estimators"]),  # Utilizza il numero di alberi migliore
+            max_depth=profondita,  # Utilizza la profondità migliore
+            random_state=42,  # Rende riproducibile il modello
+            n_jobs=-1  # Utilizza tutti i processori disponibili
         )
 
 
-    # Addestriamo il modello scelto su tutti i pazienti storici.
+    # ADDESTRAMENTO DEL MODELLO
 
     modello_finale.fit(
-        X_train_finale,
-        y_train
+        X_train_finale,  # Utilizza le caratteristiche dei pazienti storici
+        y_train  # Utilizza gli eventi coronarici osservati
     )
 
 
-    # ============================================================
-    # 7.14 PREVISIONI SUI NUOVI UTENTI
-    # ============================================================
+    # PREVISIONI SUI QUESTIONARI
 
-    # Applichiamo il modello ai nuovi questionari.
+    previsioni = modello_finale.predict(X_test_finale)  # Prevede le classi dei questionari
 
-    previsioni = modello_finale.predict(X_test_finale)
+    probabilita = modello_finale.predict_proba(X_test_finale)  # Calcola le probabilità delle classi
 
-    probabilita = modello_finale.predict_proba(X_test_finale)
-
-    # Individuiamo la colonna relativa alla classe 1.
-
-    indice_evento = list(modello_finale.classes_).index(1)
+    indice_evento = list(modello_finale.classes_).index(1)  # Individua la classe positiva
 
     probabilita_evento = (
-        probabilita[:, indice_evento] * 100
+        probabilita[:, indice_evento] * 100  # Converte le probabilità in percentuali
     )
 
 
-    # ============================================================
-    # 7.15 RISULTATI HEART VISION
-    # ============================================================
+    # RISULTATI DELLE PREVISIONI
 
     risultati = pd.DataFrame({
 
-        "utente": range(1, len(X_test) + 1),
+        "utente": range(1, len(X_test) + 1),  # Numera le righe dei risultati
 
-        "previsione": previsioni,
+        "previsione": previsioni,  # Mostra la classe prevista
 
         "probabilita_evento_percentuale": (
-            probabilita_evento.round(2)
+            probabilita_evento.round(2)  # Arrotonda le probabilità
         )
 
     })
 
     print("\nMODELLO UTILIZZATO:", modello_scelto)
-
     print("\nRISULTATI HEART VISION:")
+    print(risultati)  # Visualizza le previsioni
 
-    print(risultati)
 
-
+# GRAFICO DEL CONFRONTO FINALE
 
 if "confronto" not in globals() or "df_X" not in globals():
-        print("Prima carica i dataset ed esegui il confronto dei modelli.")
-        
-global migliori_modelli
-    # ============================================================
-    # 7.11 GRAFICO CONFRONTO FINALE
-    # ============================================================
+    print("Prima carica i dataset ed esegui il confronto dei modelli.")
 
-if "migliori_modelli" in globals():
-    plt.figure(figsize=(10, 6))
-    posizioni = np.arange(len(migliori_modelli))
+global migliori_modelli  # Fa riferimento alla tabella dei migliori modelli
 
-    larghezza = 0.35
+if "migliori_modelli" in globals():  # Verifica la disponibilità del confronto
+
+    plt.figure(figsize=(10, 6))  # Crea una nuova figura
+
+    posizioni = np.arange(len(migliori_modelli))  # Calcola le posizioni delle barre
+    larghezza = 0.35  # Imposta la larghezza delle barre
 
     plt.bar(
         posizioni - larghezza / 2,
         migliori_modelli["f1_score"],
         larghezza,
-        label="F1 Score"
+        label="F1 Score"  # Rappresenta l'F1-score
     )
 
     plt.bar(
         posizioni + larghezza / 2,
         migliori_modelli["recall"],
         larghezza,
-        label="Recall"
+        label="Recall"  # Rappresenta il recall
     )
 
     plt.title("Confronto finale dei migliori algoritmi")
     plt.xlabel("Algoritmo")
     plt.ylabel("Punteggio medio")
-    plt.xticks(posizioni, migliori_modelli["algoritmo"])
 
-    plt.ylim(0, 1)
-    plt.grid(axis="y")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    plt.xticks(posizioni, migliori_modelli["algoritmo"])  # Mostra i nomi degli algoritmi
 
-    # Impostiamo lo stile grafico pulito
+    plt.ylim(0, 1)  # Imposta i limiti verticali
+    plt.grid(axis="y")  # Attiva la griglia orizzontale
+    plt.legend()  # Mostra la legenda
+    plt.tight_layout()  # Ottimizza la disposizione
+    plt.show()  # Visualizza il grafico
 
-    # 1. Definiamo la variabile target se non è già presente
-target = "evento_coronarico_10_anni"
 
-    # 2. Caricamento di df_X se non è già in memoria
+# CARICAMENTO DI SUPPORTO PER I GRAFICI
+
+target = "evento_coronarico_10_anni"  # Mantiene il nome della variabile target
+
 try:
-      df_X
+    df_X  # Controlla se il dataset storico è disponibile
+
 except NameError:
-      df_X = pd.read_csv("Dataset_storico/HEARTVISION_dataset_completo.csv")
-      if "bmi" not in df_X.columns:
+
+    df_X = pd.read_csv(
+        "Dataset_storico/HEARTVISION_dataset_completo.csv"
+    )  # Carica il dataset se non è già presente
+
+    if "bmi" not in df_X.columns:  # Verifica se il BMI è già calcolato
+
         df_X["bmi"] = (
             df_X["peso_kg"] / (df_X["altezza_cm"] / 100) ** 2
-        ).round(2)
+        ).round(2)  # Calcola il BMI
 
 
-    # ============================================================
-    # GRAFICO 1: Impatto dei Fattori di Rischio Principali
-    # ============================================================
-def mostra_grafici():
-    fattori_rischio = [
+# FUNZIONE PER FORMATTARE LA PROFONDITÀ
+
+def formatta_profondita(valore):  # Converte le profondità in etichette
+
+    if pd.isna(valore):  # Verifica se la profondità è illimitata
+        return "Illimitata"
+
+    return str(int(valore))  # Converte la profondità numerica in testo
+
+
+# VISUALIZZAZIONE DEI GRAFICI
+
+def mostra_grafici():  # Visualizza i grafici del progetto
+
+
+    # GRAFICO DEI FATTORI DI RISCHIO
+
+    fattori_rischio = [  # Seleziona i fattori da confrontare
         "fumatore",
         "diabete",
         "colesterolo_alto",
@@ -1184,66 +937,80 @@ def mostra_grafici():
         "ipertensione",
     ]
 
-    medie_rischio = []
-    for f in fattori_rischio:
-      # Calcoliamo la percentuale di rischio sul target del dataset storico
-      rischio_si = df_X[df_X[f] == 1][target].mean() * 100
-      medie_rischio.append({"Fattore": f.upper(), "Rischio percentuale (%)": rischio_si})
+    medie_rischio = []  # Memorizza le percentuali calcolate
+
+    for f in fattori_rischio:  # Scorre i fattori selezionati
+
+        rischio_si = df_X[df_X[f] == 1][target].mean() * 100  # Calcola la percentuale di eventi
+
+        medie_rischio.append({
+            "Fattore": f.upper(),
+            "Rischio percentuale (%)": rischio_si
+        })  # Salva la percentuale del fattore
 
     df_fattori_plot = pd.DataFrame(medie_rischio).sort_values(
-        by="Rischio percentuale (%)", ascending=False
+        by="Rischio percentuale (%)",
+        ascending=False  # Ordina i fattori per percentuale decrescente
     )
 
-    plt.figure(figsize=(11, 6))
+    plt.figure(figsize=(11, 6))  # Crea una nuova figura
 
     bars = plt.bar(
         df_fattori_plot["Fattore"],
         df_fattori_plot["Rischio percentuale (%)"],
         color="#FF27BE",
         alpha=0.85,
-        width=0.55,
-    )
+        width=0.55
+    )  # Disegna le barre dei fattori
 
     plt.title(
         "HEARTVISION - Incidenza dei Fattori di Rischio a 10 Anni",
         fontsize=14,
         fontweight="bold",
-        pad=15,
+        pad=15
     )
+
     plt.xlabel("Fattore di Rischio", fontsize=12, labelpad=10)
     plt.ylabel("Percentuale di Evento Coronarico (%)", fontsize=12)
-    plt.ylim(0, max(df_fattori_plot["Rischio percentuale (%)"]) * 1.2)
 
-    for bar in bars:
-      yval = bar.get_height()
-      plt.text(
-          bar.get_x() + bar.get_width() / 2.0,
-          yval + 0.5,
-          f"{yval:.1f}%",
-          ha="center",
-          va="bottom",
-          fontsize=10,
-          fontweight="bold",
-      )
+    plt.ylim(
+        0,
+        max(df_fattori_plot["Rischio percentuale (%)"]) * 1.2
+    )  # Lascia spazio sopra le barre
+
+    for bar in bars:  # Aggiunge le percentuali sopra ogni barra
+
+        yval = bar.get_height()  # Recupera l'altezza della barra
+
+        plt.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            yval + 0.5,
+            f"{yval:.1f}%",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold"
+        )
 
     plt.xticks(rotation=0, fontsize=10, fontweight="bold")
     plt.tight_layout()
     plt.show()
 
 
-    # ============================================================
-    # GRAFICO 2: Confronto Finale dei Modelli (Decision Tree vs Altri)
-    # ============================================================
-    # (Nota: richiede che il DataFrame 'confronto' sia stato generato in precedenza)
+    # GRAFICO DEL CONFRONTO DEI MODELLI
+
     migliori_per_algoritmo = (
-        confronto.loc[confronto.groupby("algoritmo")["f1_score"].idxmax()]
+        confronto.loc[
+            confronto.groupby("algoritmo")["f1_score"].idxmax()
+        ]
         .copy()
         .reset_index(drop=True)
-    )
+    )  # Seleziona la migliore configurazione di ogni algoritmo
 
-    plt.figure(figsize=(9, 5))
-    x = np.arange(len(migliori_per_algoritmo))
-    width = 0.35
+    plt.figure(figsize=(9, 5))  # Crea una nuova figura
+
+    x = np.arange(len(migliori_per_algoritmo))  # Calcola le posizioni delle barre
+    width = 0.35  # Imposta la larghezza delle barre
 
     plt.bar(
         x - width / 2,
@@ -1251,88 +1018,116 @@ def mostra_grafici():
         width,
         label="F1 Score",
         color="#4B0082",
-        alpha=0.85,
+        alpha=0.85
     )
+
     plt.bar(
         x + width / 2,
         migliori_per_algoritmo["recall"],
         width,
         label="Recall",
         color="#6A5ACD",
-        alpha=0.85,
+        alpha=0.85
     )
 
     plt.title(
         "HEARTVISION - Confronto Metriche: Perché il Decision Tree eccelle",
         fontsize=14,
         fontweight="bold",
-        pad=15,
+        pad=15
     )
+
     plt.xlabel("Algoritmo di Machine Learning", fontsize=12, labelpad=10)
     plt.ylabel("Punteggio medio (Cross-Validation)", fontsize=12)
-    plt.xticks(x, migliori_per_algoritmo["algoritmo"], fontweight="bold", rotation=0)
+
+    plt.xticks(
+        x,
+        migliori_per_algoritmo["algoritmo"],
+        fontweight="bold",
+        rotation=0
+    )
+
     plt.ylim(0, 1.1)
     plt.legend(loc="upper right")
     plt.grid(axis="y", linestyle="--", alpha=0.7)
 
-    # Evidenziamo il Decision Tree con una nota testuale nel grafico
+
+    # ANNOTAZIONE DEL DECISION TREE
+
     dt_idx = migliori_per_algoritmo[
         migliori_per_algoritmo["algoritmo"] == "Decision Tree"
-    ].index[0]
-    dt_f1 = migliori_per_algoritmo.loc[dt_idx, "f1_score"]
+    ].index[0]  # Individua la posizione del Decision Tree
+
+    dt_f1 = migliori_per_algoritmo.loc[
+        dt_idx, "f1_score"
+    ]  # Recupera l'F1-score del Decision Tree
+
     plt.annotate(
         "Miglior equilibrio\npredittivo",
         xy=(dt_idx - width / 2, dt_f1),
         xytext=(dt_idx, dt_f1 + 0.1),
         ha="center",
-        arrowprops=dict(facecolor="black", shrink=0.05, width=1, headwidth=6),
+        arrowprops=dict(
+            facecolor="black",
+            shrink=0.05,
+            width=1,
+            headwidth=6
+        ),
         fontweight="bold",
-        color="darkgreen",
-    )
+        color="darkgreen"
+    )  # Aggiunge una nota sul grafico
 
     plt.tight_layout()
     plt.show()
 
 
-    # ============================================================
-    # GRAFICO 3: Decision Tree - Prestazioni per Profondità e Criteri
-    # ============================================================
-    decision_grafico = confronto[confronto["algoritmo"] == "Decision Tree"].copy()
+    # GRAFICO DELLE PROFONDITÀ DEL DECISION TREE
 
-    # Prepariamo le etichette delle profondità (None diventa "Illimitata")
-    decision_grafico["profondita"] = decision_grafico["max_depth"].apply(
-        lambda valore: "Illimitata" if pd.isna(valore) else str(int(valore))
+    decision_grafico = confronto[
+        confronto["algoritmo"] == "Decision Tree"
+    ].copy()  # Seleziona le configurazioni del Decision Tree
+
+    decision_grafico["profondita"] = decision_grafico[
+        "max_depth"
+    ].apply(
+        formatta_profondita  # Utilizza la funzione normale definita sopra
     )
 
-    # Creiamo una tabella pivot con F1 Score per criterio e profondità
     tabella_decision = decision_grafico.pivot(
-        index="profondita", columns="criterio", values="f1_score"
-    )
+        index="profondita",
+        columns="criterio",
+        values="f1_score"
+    )  # Organizza l'F1-score per criterio e profondità
 
-    # Ordiniamo correttamente l'asse X delle profondità
     indici_ordinati = [
-        p for p in ["3", "5", "10", "Illimitata"] if p in tabella_decision.index
-    ]
-    tabella_decision = tabella_decision.reindex(indici_ordinati)
+        p for p in ["3", "5", "10", "Illimitata"]
+        if p in tabella_decision.index
+    ]  # Definisce l'ordine delle profondità
 
-    plt.figure(figsize=(10, 6))
+    tabella_decision = tabella_decision.reindex(
+        indici_ordinati
+    )  # Riordina le righe della tabella
 
-    for criterio in tabella_decision.columns:
-      plt.plot(
-          tabella_decision.index,
-          tabella_decision[criterio],
-          marker="o",
-          linewidth=2.5,
-          markersize=8,
-          label=f"Criterio: {criterio}",
-      )
+    plt.figure(figsize=(10, 6))  # Crea una nuova figura
+
+    for criterio in tabella_decision.columns:  # Disegna una curva per criterio
+
+        plt.plot(
+            tabella_decision.index,
+            tabella_decision[criterio],
+            marker="o",
+            linewidth=2.5,
+            markersize=8,
+            label=f"Criterio: {criterio}"
+        )
 
     plt.title(
         "HEARTVISION - Decision Tree: Impatto di Profondità e Criteri sul F1 Score",
         fontsize=14,
         fontweight="bold",
-        pad=15,
+        pad=15
     )
+
     plt.xlabel("Profondità Massima dell'Albero", fontsize=12, labelpad=10)
     plt.ylabel("F1 Score Medio", fontsize=12)
     plt.ylim(0, 1.1)
@@ -1343,19 +1138,28 @@ def mostra_grafici():
     plt.show()
 
 
-def mostra_risultati():
-    if "risultati" not in globals():
+# VISUALIZZAZIONE DEI RISULTATI
+
+def mostra_risultati():  # Mostra la tabella delle previsioni
+
+    if "risultati" not in globals():  # Verifica che siano state effettuate previsioni
         print("Prima esegui le previsioni (opzione 4).")
         return
+
     print("\nRISULTATI HEARTVISION:")
-    print(risultati.to_string(index=False))
+    print(risultati.to_string(index=False))  # Mostra tutti i partecipanti
 
 
-def menu_principale():
-    while True:
+# MENU PRINCIPALE
+
+def menu_principale():  # Gestisce la navigazione del programma
+
+    while True:  # Mantiene attivo il menu fino all'uscita
+
         print("\n" + "=" * 55)
         print("             HEARTVISION - MENU PRINCIPALE")
         print("=" * 55)
+
         print("1. Caricamento e pulizia dei dataset")
         print("2. Confronto KNN, Decision Tree e Random Forest")
         print("3. Visualizzazione dei risultati del confronto")
@@ -1363,41 +1167,68 @@ def menu_principale():
         print("5. Visualizzazione grafici")
         print("6. Mostra risultati delle previsioni")
         print("0. Esci")
-        scelta = input("\nSeleziona un'opzione: ").strip()
+
+        scelta = input("\nSeleziona un'opzione: ").strip()  # Legge l'opzione selezionata
 
         try:
-            if scelta == "1":
+
+            if scelta == "1":  # Carica e pulisce i dataset
                 carica_dataset()
-            elif scelta == "2":
+
+            elif scelta == "2":  # Confronta gli algoritmi
+
                 if "df_X" not in globals() or "df_y" not in globals():
                     print("Prima carica i dataset (opzione 1).")
                 else:
                     esegui_confronto_modelli()
-            elif scelta == "3":
+
+            elif scelta == "3":  # Visualizza i risultati del confronto
+
                 if "confronto" in globals():
+
                     print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")
                     print(confronto.to_string(index=False))
+
                     print("\nMIGLIORE CONFIGURAZIONE PER ALGORITMO:")
-                    print(migliori_modelli[["algoritmo", "configurazione"] + metriche].to_string(index=False))
+                    print(
+                        migliori_modelli[
+                            ["algoritmo", "configurazione"] + metriche
+                        ].to_string(index=False)
+                    )
+
                 else:
                     print("Prima esegui il confronto dei modelli (opzione 2).")
-            elif scelta == "4":
+
+            elif scelta == "4":  # Addestra il modello ed effettua le previsioni
                 esegui_previsioni()
-            elif scelta == "5":
+
+            elif scelta == "5":  # Visualizza i grafici
                 mostra_grafici()
-            elif scelta == "6":
+
+            elif scelta == "6":  # Mostra le previsioni
                 mostra_risultati()
-            elif scelta == "0":
+
+            elif scelta == "0":  # Termina il programma
                 print("Chiusura di HEARTVISION. Arrivederci!")
                 break
+
             else:
                 print("Opzione non valida. Inserisci un numero da 0 a 6.")
-        except FileNotFoundError as errore:
+
+        except FileNotFoundError as errore:  # Gestisce i file mancanti
+
             print(f"\nFile non trovato: {errore}")
-            print("Controlla che le cartelle Dataset_storico e Dataset_questionari siano accanto allo script.")
-        except Exception as errore:
+            print(
+                "Controlla che le cartelle Dataset_storico e "
+                "Dataset_questionari siano accanto allo script."
+            )
+
+        except Exception as errore:  # Mostra eventuali altri errori
+
             print(f"\nSi è verificato un errore: {errore}")
 
 
-if __name__ == "__main__":
+# AVVIO DEL PROGRAMMA
+
+if __name__ == "__main__":  # Avvia il programma soltanto se eseguito direttamente
     menu_principale()

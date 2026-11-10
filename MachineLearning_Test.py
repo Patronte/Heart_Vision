@@ -1,791 +1,379 @@
-# ALGORITMI MACHINE LEARNING
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-import matplotlib.pyplot as plt
 
-import pandas as pd
-import numpy as np
+# HEARTVISION - MACHINE LEARNING, GRAFICI E PREVISIONI
 
-# CROSS VALIDATION
-from sklearn.model_selection import StratifiedKFold
+# IMPORTAZIONE DELLE LIBRERIE
 
-# METRICHE DI VALUTAZIONE
-from sklearn.metrics import (
+from sklearn.neighbors import KNeighborsClassifier  # Importa il classificatore KNN
+from sklearn.preprocessing import StandardScaler  # Standardizza le caratteristiche numeriche
+from sklearn.tree import DecisionTreeClassifier  # Importa l'albero decisionale
+from sklearn.ensemble import RandomForestClassifier  # Importa la foresta casuale
+from sklearn.model_selection import StratifiedKFold  # Divide i dati in fold stratificati
+from sklearn.metrics import (  # Importa le metriche di valutazione
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
     roc_auc_score
 )
+import matplotlib.pyplot as plt  # Crea i grafici
+import pandas as pd  # Gestisce i DataFrame
+import numpy as np  # Gestisce i valori e le posizioni numeriche
 
-# ============================================================
-# 7. MACHINE LEARNING - HEART VISION
-# ============================================================
+# COLLEGAMENTO AL PROGRAMMA HEARTVISION
 
+import heart_vision as hv  # Importa il modulo principale di HEARTVISION
 
-# ============================================================
-# 7.1 SEPARAZIONE DEI DATI
-# ============================================================
+hv.carica_dataset()  # Carica, controlla e pulisce entrambi i dataset
 
-# X_train contiene le caratteristiche dei pazienti storici.
-# Utilizziamo le 15 variabili originali e il BMI calcolato.
+df_X = hv.df_X  # Recupera il dataset storico Framingham
+df_y = hv.df_y  # Recupera il dataset dei questionari
 
-X_train = df_X[colonne + ["bmi"]]
-
-# y_train contiene i risultati storici conosciuti:
-# 0 = nessun evento coronarico registrato
-# 1 = evento coronarico registrato entro 10 anni
-
-y_train = df_X[target]
-
-# X_test contiene le caratteristiche dei nuovi utenti.
-# Non utilizziamo questi dati per addestrare o confrontare
-# gli algoritmi.
-
-X_test = df_y[colonne + ["bmi"]]
+colonne = hv.colonne  # Recupera le 15 caratteristiche
+target = hv.target  # Recupera la variabile da prevedere
 
 
-# ============================================================
-# 7.2 PREPARAZIONE DELLA CROSS VALIDATION
-# ============================================================
+# SEPARAZIONE DEI DATI
 
-# Dividiamo temporaneamente i dati storici in 5 gruppi.
-#
-# A ogni iterazione:
-# - 4 gruppi vengono utilizzati per addestrare il modello.
-# - 1 gruppo viene utilizzato per valutarlo.
-#
-# La procedura viene ripetuta 5 volte, cambiando il gruppo
-# utilizzato per la valutazione.
-#
-# In questo modo tutti i pazienti storici vengono valutati.
-# I nuovi questionari (X_test) restano esclusi.
+X_train = df_X[colonne + ["bmi"]]  # Seleziona le caratteristiche del dataset storico
+y_train = df_X[target]  # Seleziona gli eventi coronarici registrati
+X_test = df_y[colonne + ["bmi"]]  # Seleziona le caratteristiche dei questionari
+
+
+# SEPARAZIONE DEI DATI
+
+X_train = df_X[colonne + ["bmi"]]  # Seleziona le caratteristiche del dataset storico
+y_train = df_X[target]  # Seleziona gli esiti storici conosciuti: 0 oppure 1
+X_test = df_y[colonne + ["bmi"]]  # Seleziona i questionari, esclusi dalla validazione
+
+
+# PREPARAZIONE DELLA CROSS-VALIDATION
 
 cv = StratifiedKFold(
-    n_splits=5,
-    shuffle=True,
-    random_state=42
+    n_splits=5,  # Divide lo storico in cinque gruppi
+    shuffle=True,  # Mescola le osservazioni
+    random_state=42  # Rende riproducibile la suddivisione
 )
 
-# Qui raccogliamo i risultati di tutte le configurazioni.
-
-risultati_cv = []
+risultati_cv = []  # Raccoglie le metriche di ogni configurazione e fold
 
 
-# ============================================================
-# 7.3 K NEAREST NEIGHBORS (KNN)
-# ============================================================
+# CONFRONTO K-NEAREST NEIGHBORS
 
-# Proviamo diversi valori di K.
-# K indica il numero di pazienti storici più vicini
-# utilizzati per classificare un nuovo paziente.
+valori_k = [3, 5, 7, 9, 11, 15]  # Definisce i numeri di vicini da provare
 
-valori_k = [3, 5, 7, 9, 11, 15]
+for k in valori_k:  # Valuta ogni valore di K
+    for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i cinque fold
+        X_fold_train = X_train.iloc[indice_train]  # Seleziona le caratteristiche di training
+        X_fold_val = X_train.iloc[indice_val]  # Seleziona le caratteristiche di validazione
+        y_fold_train = y_train.iloc[indice_train]  # Seleziona gli esiti del training
+        y_fold_val = y_train.iloc[indice_val]  # Seleziona gli esiti della validazione
 
-for k in valori_k:
+        scaler_fold = StandardScaler()  # Crea uno scaler indipendente per il fold
+        X_fold_train = scaler_fold.fit_transform(X_fold_train)  # Impara le scale dal solo training
+        X_fold_val = scaler_fold.transform(X_fold_val)  # Applica le stesse scale alla validazione
 
-    # Ripetiamo la valutazione sui 5 gruppi.
+        modello = KNeighborsClassifier(n_neighbors=k)  # Crea il KNN con K vicini
+        modello.fit(X_fold_train, y_fold_train)  # Addestra il KNN
 
-    for indice_train, indice_val in cv.split(X_train, y_train):
+        previsioni = modello.predict(X_fold_val)  # Prevede le classi di validazione
+        probabilita = modello.predict_proba(X_fold_val)  # Stima le probabilità per classe
+        indice_evento = list(modello.classes_).index(1)  # Trova la posizione della classe positiva
+        probabilita_evento = probabilita[:, indice_evento]  # Estrae la probabilità della classe 1
 
-        # Selezioniamo i dati di addestramento e valutazione.
-
-        X_fold_train = X_train.iloc[indice_train]
-        X_fold_val = X_train.iloc[indice_val]
-
-        y_fold_train = y_train.iloc[indice_train]
-        y_fold_val = y_train.iloc[indice_val]
-
-
-        # NORMALIZZAZIONE
-
-        # KNN utilizza le distanze tra i pazienti.
-        # Per questo motivo dobbiamo normalizzare le variabili.
-
-        scaler_fold = StandardScaler()
-
-        # Impariamo media e deviazione standard
-        # esclusivamente dai dati di addestramento.
-
-        X_fold_train = scaler_fold.fit_transform(X_fold_train)
-
-        # Applichiamo la stessa trasformazione ai dati
-        # utilizzati per la valutazione.
-
-        X_fold_val = scaler_fold.transform(X_fold_val)
-
-
-        # CREAZIONE DEL MODELLO
-
-        modello = KNeighborsClassifier(
-            n_neighbors=k
-        )
-
-
-        # ADDESTRAMENTO
-
-        modello.fit(X_fold_train, y_fold_train)
-
-
-        # PREVISIONI
-
-        previsioni = modello.predict(X_fold_val)
-
-        probabilita = modello.predict_proba(X_fold_val)
-
-        indice_evento = list(modello.classes_).index(1)
-
-        probabilita_evento = probabilita[:, indice_evento]
-
-
-        # CALCOLO DELLE METRICHE
-
-        risultati_cv.append({
-
+        risultati_cv.append({  # Salva parametri e metriche del fold
             "algoritmo": "KNN",
-
             "configurazione": f"K={k}",
-
             "k": k,
-
             "criterio": None,
-
             "max_depth": None,
-
             "n_estimators": None,
-
-            "accuracy": accuracy_score(
-                y_fold_val, previsioni
-            ),
-
-            "precision": precision_score(
-                y_fold_val, previsioni, zero_division=0
-            ),
-
-            "recall": recall_score(
-                y_fold_val, previsioni, zero_division=0
-            ),
-
-            "f1_score": f1_score(
-                y_fold_val, previsioni, zero_division=0
-            ),
-
-            "roc_auc": roc_auc_score(
-                y_fold_val, probabilita_evento
-            )
-
+            "accuracy": accuracy_score(y_fold_val, previsioni),  # Percentuale di previsioni corrette
+            "precision": precision_score(y_fold_val, previsioni, zero_division=0),  # Precisione della classe 1
+            "recall": recall_score(y_fold_val, previsioni, zero_division=0),  # Positivi effettivamente individuati
+            "f1_score": f1_score(y_fold_val, previsioni, zero_division=0),  # Equilibrio tra precision e recall
+            "roc_auc": roc_auc_score(y_fold_val, probabilita_evento)  # Capacità di distinguere le classi
         })
 
 
-# ============================================================
-# 7.4 DECISION TREE CLASSIFIER
-# ============================================================
+# CONFRONTO DECISION TREE
 
-# Proviamo due criteri di divisione:
-# Gini ed Entropy.
-#
-# Proviamo inoltre diverse profondità dell'albero.
-# None significa che non imponiamo un limite alla profondità.
+criteri = ["gini", "entropy"]  # Definisce i criteri di separazione
+profondita_alberi = [3, 5, 10, None]  # None indica profondità non limitata
 
-criteri = ["gini", "entropy"]
-
-profondita_alberi = [3, 5, 10, None]
-
-
-for criterio in criteri:
-
-    for profondita in profondita_alberi:
-
-        for indice_train, indice_val in cv.split(X_train, y_train):
-
-            # SEPARAZIONE DEI GRUPPI
-
-            X_fold_train = X_train.iloc[indice_train]
-            X_fold_val = X_train.iloc[indice_val]
-
-            y_fold_train = y_train.iloc[indice_train]
-            y_fold_val = y_train.iloc[indice_val]
-
-
-            # CREAZIONE DEL MODELLO
+for criterio in criteri:  # Prova ciascun criterio
+    for profondita in profondita_alberi:  # Prova ciascuna profondità
+        for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i cinque fold
+            X_fold_train = X_train.iloc[indice_train]  # Seleziona le caratteristiche di training
+            X_fold_val = X_train.iloc[indice_val]  # Seleziona le caratteristiche di validazione
+            y_fold_train = y_train.iloc[indice_train]  # Seleziona gli esiti del training
+            y_fold_val = y_train.iloc[indice_val]  # Seleziona gli esiti della validazione
 
             modello = DecisionTreeClassifier(
-                criterion=criterio,
-                max_depth=profondita,
-                random_state=42
+                criterion=criterio,  # Utilizza Gini oppure Entropy
+                max_depth=profondita,  # Imposta la profondità massima
+                random_state=42  # Rende riproducibile il risultato
             )
+            modello.fit(X_fold_train, y_fold_train)  # Addestra l'albero sui dati originali
 
+            previsioni = modello.predict(X_fold_val)  # Prevede le classi di validazione
+            probabilita = modello.predict_proba(X_fold_val)  # Stima le probabilità per classe
+            indice_evento = list(modello.classes_).index(1)  # Trova la posizione della classe positiva
+            probabilita_evento = probabilita[:, indice_evento]  # Estrae la probabilità della classe 1
 
-            # ADDESTRAMENTO
-
-            modello.fit(X_fold_train, y_fold_train)
-
-
-            # PREVISIONI
-
-            previsioni = modello.predict(X_fold_val)
-
-            probabilita = modello.predict_proba(X_fold_val)
-
-            indice_evento = list(modello.classes_).index(1)
-
-            probabilita_evento = probabilita[:, indice_evento]
-
-
-            # CALCOLO DELLE METRICHE
-
-            risultati_cv.append({
-
+            risultati_cv.append({  # Salva parametri e metriche del fold
                 "algoritmo": "Decision Tree",
-
-                "configurazione": (
-                    f"{criterio} - profondità {profondita}"
-                ),
-
+                "configurazione": f"{criterio} - profondità {profondita}",
                 "k": None,
-
                 "criterio": criterio,
-
                 "max_depth": profondita,
-
                 "n_estimators": None,
-
-                "accuracy": accuracy_score(
-                    y_fold_val, previsioni
-                ),
-
-                "precision": precision_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "recall": recall_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "f1_score": f1_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "roc_auc": roc_auc_score(
-                    y_fold_val, probabilita_evento
-                )
-
+                "accuracy": accuracy_score(y_fold_val, previsioni),  # Percentuale di previsioni corrette
+                "precision": precision_score(y_fold_val, previsioni, zero_division=0),  # Precisione della classe 1
+                "recall": recall_score(y_fold_val, previsioni, zero_division=0),  # Positivi effettivamente individuati
+                "f1_score": f1_score(y_fold_val, previsioni, zero_division=0),  # Equilibrio tra precision e recall
+                "roc_auc": roc_auc_score(y_fold_val, probabilita_evento)  # Capacità di distinguere le classi
             })
 
 
-# ============================================================
-# 7.5 RANDOM FOREST CLASSIFIER
-# ============================================================
+# CONFRONTO RANDOM FOREST
 
-# Proviamo diverse quantità di alberi:
-# 100, 200 e 300.
-#
-# Proviamo anche diverse profondità.
-# Ogni configurazione viene valutata sui 5 gruppi.
+numero_alberi = [100, 200, 300]  # Definisce il numero di alberi da provare
+profondita_foresta = [5, 10, None]  # Definisce le profondità da provare
 
-numero_alberi = [100, 200, 300]
-
-profondita_foresta = [5, 10, None]
-
-
-for numero in numero_alberi:
-
-    for profondita in profondita_foresta:
-
-        for indice_train, indice_val in cv.split(X_train, y_train):
-
-            # SEPARAZIONE DEI GRUPPI
-
-            X_fold_train = X_train.iloc[indice_train]
-            X_fold_val = X_train.iloc[indice_val]
-
-            y_fold_train = y_train.iloc[indice_train]
-            y_fold_val = y_train.iloc[indice_val]
-
-
-            # CREAZIONE DEL MODELLO
+for numero in numero_alberi:  # Prova ogni quantità di alberi
+    for profondita in profondita_foresta:  # Prova ogni profondità
+        for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i cinque fold
+            X_fold_train = X_train.iloc[indice_train]  # Seleziona le caratteristiche di training
+            X_fold_val = X_train.iloc[indice_val]  # Seleziona le caratteristiche di validazione
+            y_fold_train = y_train.iloc[indice_train]  # Seleziona gli esiti del training
+            y_fold_val = y_train.iloc[indice_val]  # Seleziona gli esiti della validazione
 
             modello = RandomForestClassifier(
-                n_estimators=numero,
-                max_depth=profondita,
-                random_state=42,
-                n_jobs=-1
+                n_estimators=numero,  # Imposta il numero di alberi
+                max_depth=profondita,  # Imposta la profondità massima
+                random_state=42,  # Rende riproducibile il risultato
+                n_jobs=-1  # Usa tutti i processori disponibili
             )
+            modello.fit(X_fold_train, y_fold_train)  # Addestra la foresta sui dati originali
 
+            previsioni = modello.predict(X_fold_val)  # Prevede le classi di validazione
+            probabilita = modello.predict_proba(X_fold_val)  # Stima le probabilità per classe
+            indice_evento = list(modello.classes_).index(1)  # Trova la posizione della classe positiva
+            probabilita_evento = probabilita[:, indice_evento]  # Estrae la probabilità della classe 1
 
-            # ADDESTRAMENTO
-
-            modello.fit(X_fold_train, y_fold_train)
-
-
-            # PREVISIONI
-
-            previsioni = modello.predict(X_fold_val)
-
-            probabilita = modello.predict_proba(X_fold_val)
-
-            indice_evento = list(modello.classes_).index(1)
-
-            probabilita_evento = probabilita[:, indice_evento]
-
-
-            # CALCOLO DELLE METRICHE
-
-            risultati_cv.append({
-
+            risultati_cv.append({  # Salva parametri e metriche del fold
                 "algoritmo": "Random Forest",
-
-                "configurazione": (
-                    f"{numero} alberi - profondità {profondita}"
-                ),
-
+                "configurazione": f"{numero} alberi - profondità {profondita}",
                 "k": None,
-
                 "criterio": None,
-
                 "max_depth": profondita,
-
                 "n_estimators": numero,
-
-                "accuracy": accuracy_score(
-                    y_fold_val, previsioni
-                ),
-
-                "precision": precision_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "recall": recall_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "f1_score": f1_score(
-                    y_fold_val, previsioni, zero_division=0
-                ),
-
-                "roc_auc": roc_auc_score(
-                    y_fold_val, probabilita_evento
-                )
-
+                "accuracy": accuracy_score(y_fold_val, previsioni),  # Percentuale di previsioni corrette
+                "precision": precision_score(y_fold_val, previsioni, zero_division=0),  # Precisione della classe 1
+                "recall": recall_score(y_fold_val, previsioni, zero_division=0),  # Positivi effettivamente individuati
+                "f1_score": f1_score(y_fold_val, previsioni, zero_division=0),  # Equilibrio tra precision e recall
+                "roc_auc": roc_auc_score(y_fold_val, probabilita_evento)  # Capacità di distinguere le classi
             })
 
 
-# ============================================================
-# 7.6 CONFRONTO DEI RISULTATI
-# ============================================================
+# CONFRONTO DELLE METRICHE
 
-# Trasformiamo tutti i risultati in un DataFrame.
-
-df_risultati = pd.DataFrame(risultati_cv)
-
-# Elenco delle metriche da confrontare.
-
-metriche = [
-    "accuracy",
-    "precision",
-    "recall",
-    "f1_score",
-    "roc_auc"
-]
-
-# Calcoliamo la media delle 5 valutazioni
-# per ogni configurazione.
+df_risultati = pd.DataFrame(risultati_cv)  # Riunisce tutte le prove in una tabella
+metriche = ["accuracy", "precision", "recall", "f1_score", "roc_auc"]  # Definisce le metriche da confrontare
 
 confronto = (
     df_risultati
-    .groupby(["algoritmo", "configurazione"])[metriche]
-    .mean()
-    .reset_index()
+    .groupby(["algoritmo", "configurazione"])[metriche]  # Raggruppa le prove della stessa configurazione
+    .mean()  # Calcola la media sui cinque fold
+    .reset_index()  # Ripristina un indice numerico
 )
-
-# Recuperiamo i parametri utilizzati da ogni configurazione.
 
 parametri = (
-    df_risultati[
-        [
-            "algoritmo",
-            "configurazione",
-            "k",
-            "criterio",
-            "max_depth",
-            "n_estimators"
-        ]
-    ]
-    .drop_duplicates()
+    df_risultati[["algoritmo", "configurazione", "k", "criterio", "max_depth", "n_estimators"]]
+    .drop_duplicates()  # Mantiene una riga per ogni configurazione
 )
 
-confronto = confronto.merge(
-    parametri,
-    on=["algoritmo", "configurazione"]
-)
+confronto = confronto.merge(parametri, on=["algoritmo", "configurazione"])  # Associa le metriche ai parametri
+confronto[metriche] = confronto[metriche].round(3)  # Arrotonda i punteggi a tre decimali
+confronto = confronto.sort_values(by="f1_score", ascending=False)  # Ordina secondo il punteggio F1
 
-# Arrotondiamo i risultati.
-
-confronto[metriche] = confronto[metriche].round(3)
-
-# Ordiniamo le configurazioni in base a F1 Score.
-
-confronto = confronto.sort_values(
-    by="f1_score",
-    ascending=False
-)
-
-print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")
-print(confronto.to_string(index=False))
+print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")  # Introduce la tabella completa
+print(confronto.to_string(index=False))  # Mostra le configurazioni senza indice
 
 
-# ============================================================
-# 7.7 MIGLIOR CONFIGURAZIONE PER OGNI ALGORITMO
-# ============================================================
-
-# Per ogni algoritmo individuiamo la configurazione
-# con il miglior F1 Score medio.
+# MIGLIORE CONFIGURAZIONE PER ALGORITMO
 
 indici_migliori = (
     confronto
-    .groupby("algoritmo")["f1_score"]
-    .idxmax()
+    .groupby("algoritmo")["f1_score"]  # Raggruppa per tipo di algoritmo
+    .idxmax()  # Trova la configurazione con F1 più alto
 )
 
-migliori_modelli = confronto.loc[
-    indici_migliori
-].reset_index(drop=True)
+migliori_modelli = confronto.loc[indici_migliori].reset_index(drop=True)  # Riunisce le configurazioni migliori
 
-print("\nMIGLIORE CONFIGURAZIONE PER OGNI ALGORITMO:")
-print(
-    migliori_modelli[
-        ["algoritmo", "configurazione"] + metriche
-    ].to_string(index=False)
-)
-
-# ____________________________________________________________________________________
-# ============================================================
-# 7.8 GRAFICO KNN - CONFRONTO DEI VALORI DI K
-# ============================================================
-
-knn_grafico = confronto[
-    confronto["algoritmo"] == "KNN"
-].sort_values("k")
-
-plt.figure(figsize=(10, 6))
-
-plt.plot(
-    knn_grafico["k"],
-    knn_grafico["f1_score"],
-    marker="o",
-    label="F1 Score"
-)
-
-plt.plot(
-    knn_grafico["k"],
-    knn_grafico["recall"],
-    marker="o",
-    label="Recall"
-)
-
-plt.plot(
-    knn_grafico["k"],
-    knn_grafico["precision"],
-    marker="o",
-    label="Precision"
-)
-
-plt.plot(
-    knn_grafico["k"],
-    knn_grafico["roc_auc"],
-    marker="o",
-    label="ROC-AUC"
-)
-
-plt.title("KNN - Prestazioni al variare di K")
-plt.xlabel("Numero di vicini (K)")
-plt.ylabel("Punteggio medio")
-plt.xticks(knn_grafico["k"])
-plt.ylim(0, 1)
-plt.grid()
-plt.legend()
-plt.tight_layout()
-plt.show()
+print("\nMIGLIORE CONFIGURAZIONE PER OGNI ALGORITMO:")  # Introduce la sintesi
+print(migliori_modelli[["algoritmo", "configurazione"] + metriche].to_string(index=False))  # Mostra le metriche migliori
 
 
-# ============================================================
-# 7.9 GRAFICO DECISION TREE - PROFONDITA'
-# ============================================================
+# GRAFICO KNN - CONFRONTO DEI VALORI DI K
 
-decision_grafico = confronto[
-    confronto["algoritmo"] == "Decision Tree"
-].copy()
+knn_grafico = confronto[confronto["algoritmo"] == "KNN"].sort_values("k")  # Ordina i risultati per K
+plt.figure(figsize=(10, 6))  # Crea una nuova figura
+plt.plot(knn_grafico["k"], knn_grafico["f1_score"], marker="o", label="F1 Score")  # Disegna l'F1
+plt.plot(knn_grafico["k"], knn_grafico["recall"], marker="o", label="Recall")  # Disegna il recall
+plt.plot(knn_grafico["k"], knn_grafico["precision"], marker="o", label="Precision")  # Disegna la precision
+plt.plot(knn_grafico["k"], knn_grafico["roc_auc"], marker="o", label="ROC-AUC")  # Disegna la ROC-AUC
+plt.title("KNN - Prestazioni al variare di K")  # Imposta il titolo
+plt.xlabel("Numero di vicini (K)")  # Imposta l'asse orizzontale
+plt.ylabel("Punteggio medio")  # Imposta l'asse verticale
+plt.xticks(knn_grafico["k"])  # Mostra ogni K sull'asse orizzontale
+plt.ylim(0, 1)  # Imposta l'intervallo dei punteggi
+plt.grid()  # Mostra la griglia
+plt.legend()  # Mostra la legenda
+plt.tight_layout()  # Evita sovrapposizioni
+plt.show()  # Visualizza il grafico
 
-# Prepariamo le etichette delle profondità.
-# None viene indicato come "Illimitata".
 
-decision_grafico["profondita"] = (
-    decision_grafico["max_depth"]
-    .apply(
-        lambda valore:
-        "Illimitata" if pd.isna(valore) else str(int(valore))
-    )
-)
+# FUNZIONE PER FORMATTARE LA PROFONDITÀ
 
-# Creiamo una tabella con F1 Score per criterio
-# e profondità.
+def formatta_profondita(valore):  # Sostituisce le lambda dei grafici
+    if pd.isna(valore):  # Verifica se la profondità è illimitata
+        return "Illimitata"  # Converte None o NaN in un'etichetta leggibile
+    return str(int(valore))  # Converte la profondità numerica in testo
+
+
+# GRAFICO DECISION TREE - PROFONDITÀ
+
+decision_grafico = confronto[confronto["algoritmo"] == "Decision Tree"].copy()  # Seleziona i risultati dell'albero
+decision_grafico["profondita"] = decision_grafico["max_depth"].apply(formatta_profondita)  # Formatta le profondità
 
 tabella_decision = decision_grafico.pivot(
-    index="profondita",
-    columns="criterio",
-    values="f1_score"
+    index="profondita",  # Mette le profondità sulle righe
+    columns="criterio",  # Mette Gini ed Entropy sulle colonne
+    values="f1_score"  # Utilizza il punteggio F1
 )
+tabella_decision = tabella_decision.reindex(["3", "5", "10", "Illimitata"])  # Ordina le profondità
 
-tabella_decision = tabella_decision.reindex(
-    ["3", "5", "10", "Illimitata"]
-)
-
-plt.figure(figsize=(10, 6))
-
-for criterio in tabella_decision.columns:
-
-    plt.plot(
-        tabella_decision.index,
-        tabella_decision[criterio],
-        marker="o",
-        label=criterio
-    )
-
-plt.title("Decision Tree - Prestazioni per profondità")
-plt.xlabel("Profondità massima")
-plt.ylabel("F1 Score medio")
-plt.ylim(0, 1)
-plt.grid()
-plt.legend(title="Criterio")
-plt.tight_layout()
-plt.show()
+plt.figure(figsize=(10, 6))  # Crea una nuova figura
+for criterio in tabella_decision.columns:  # Disegna una curva per criterio
+    plt.plot(tabella_decision.index, tabella_decision[criterio], marker="o", label=criterio)  # Mostra gli F1 medi
+plt.title("Decision Tree - Prestazioni per profondità")  # Imposta il titolo
+plt.xlabel("Profondità massima")  # Imposta l'asse orizzontale
+plt.ylabel("F1 Score medio")  # Imposta l'asse verticale
+plt.ylim(0, 1)  # Imposta l'intervallo dei punteggi
+plt.grid()  # Mostra la griglia
+plt.legend(title="Criterio")  # Distingue Gini ed Entropy
+plt.tight_layout()  # Evita sovrapposizioni
+plt.show()  # Visualizza il grafico
 
 
-# ============================================================
-# 7.10 GRAFICO RANDOM FOREST - NUMERO DI ALBERI
-# ============================================================
+# GRAFICO RANDOM FOREST - NUMERO DI ALBERI
 
-random_grafico = confronto[
-    confronto["algoritmo"] == "Random Forest"
-].copy()
-
-# Prepariamo le etichette delle profondità.
-
-random_grafico["profondita"] = (
-    random_grafico["max_depth"]
-    .apply(
-        lambda valore:
-        "Illimitata" if pd.isna(valore) else str(int(valore))
-    )
-)
-
-# Creiamo una tabella con F1 Score per numero di alberi
-# e profondità della foresta.
+random_grafico = confronto[confronto["algoritmo"] == "Random Forest"].copy()  # Seleziona i risultati della foresta
+random_grafico["profondita"] = random_grafico["max_depth"].apply(formatta_profondita)  # Formatta le profondità
 
 tabella_random = random_grafico.pivot(
-    index="n_estimators",
-    columns="profondita",
-    values="f1_score"
+    index="n_estimators",  # Mette il numero di alberi sulle righe
+    columns="profondita",  # Mette le profondità sulle colonne
+    values="f1_score"  # Utilizza il punteggio F1
 )
 
-plt.figure(figsize=(10, 6))
-
-for profondita in tabella_random.columns:
-
-    plt.plot(
-        tabella_random.index,
-        tabella_random[profondita],
-        marker="o",
-        label=f"Profondità {profondita}"
-    )
-
-plt.title("Random Forest - Prestazioni per numero di alberi")
-plt.xlabel("Numero di alberi")
-plt.ylabel("F1 Score medio")
-plt.ylim(0, 1)
-plt.xticks(numero_alberi)
-plt.grid()
-plt.legend()
-plt.tight_layout()
-plt.show()
+plt.figure(figsize=(10, 6))  # Crea una nuova figura
+for profondita in tabella_random.columns:  # Disegna una curva per profondità
+    plt.plot(tabella_random.index, tabella_random[profondita], marker="o", label=f"Profondità {profondita}")  # Mostra gli F1 medi
+plt.title("Random Forest - Prestazioni per numero di alberi")  # Imposta il titolo
+plt.xlabel("Numero di alberi")  # Imposta l'asse orizzontale
+plt.ylabel("F1 Score medio")  # Imposta l'asse verticale
+plt.ylim(0, 1)  # Imposta l'intervallo dei punteggi
+plt.xticks(numero_alberi)  # Mostra tutte le quantità di alberi
+plt.grid()  # Mostra la griglia
+plt.legend()  # Distingue le profondità
+plt.tight_layout()  # Evita sovrapposizioni
+plt.show()  # Visualizza il grafico
 
 
-# ============================================================
-# 7.11 GRAFICO CONFRONTO FINALE
-# ============================================================
+# GRAFICO DEL CONFRONTO FINALE
 
-plt.figure(figsize=(10, 6))
-
-posizioni = np.arange(len(migliori_modelli))
-
-larghezza = 0.35
-
-plt.bar(
-    posizioni - larghezza / 2,
-    migliori_modelli["f1_score"],
-    larghezza,
-    label="F1 Score"
-)
-
-plt.bar(
-    posizioni + larghezza / 2,
-    migliori_modelli["recall"],
-    larghezza,
-    label="Recall"
-)
-
-plt.title("Confronto finale dei migliori algoritmi")
-plt.xlabel("Algoritmo")
-plt.ylabel("Punteggio medio")
-plt.xticks(
-    posizioni,
-    migliori_modelli["algoritmo"]
-)
-
-plt.ylim(0, 1)
-plt.grid(axis="y")
-plt.legend()
-plt.tight_layout()
-plt.show()
+plt.figure(figsize=(10, 6))  # Crea una nuova figura
+posizioni = np.arange(len(migliori_modelli))  # Calcola le posizioni dei tre algoritmi
+larghezza = 0.35  # Definisce la larghezza delle barre
+plt.bar(posizioni - larghezza / 2, migliori_modelli["f1_score"], larghezza, label="F1 Score")  # Mostra l'F1 medio
+plt.bar(posizioni + larghezza / 2, migliori_modelli["recall"], larghezza, label="Recall")  # Mostra il recall medio
+plt.title("Confronto finale dei migliori algoritmi")  # Imposta il titolo
+plt.xlabel("Algoritmo")  # Imposta l'asse orizzontale
+plt.ylabel("Punteggio medio")  # Imposta l'asse verticale
+plt.xticks(posizioni, migliori_modelli["algoritmo"])  # Mostra i nomi degli algoritmi
+plt.ylim(0, 1)  # Imposta l'intervallo dei punteggi
+plt.grid(axis="y")  # Mostra la griglia orizzontale
+plt.legend()  # Mostra la legenda
+plt.tight_layout()  # Evita sovrapposizioni
+plt.show()  # Visualizza il grafico
 
 
-# ============================================================
-# 7.12 SCELTA DEL MODELLO FINALE
-# ============================================================
+# SELEZIONE DEL MODELLO FINALE
 
-# Dopo aver osservato la tabella e i grafici,
-# scegliamo quale algoritmo utilizzare.
-#
-# Possibili valori:
-# "KNN"
-# "Decision Tree"
-# "Random Forest"
-
-modello_scelto = "KNN"
+modello_scelto = "KNN"  # Sceglie l'algoritmo da utilizzare sui questionari
+riga_scelta = migliori_modelli[migliori_modelli["algoritmo"] == modello_scelto].iloc[0]  # Recupera i parametri migliori
+print("\nMODELLO SELEZIONATO:", modello_scelto)  # Mostra l'algoritmo scelto
+print("CONFIGURAZIONE:", riga_scelta["configurazione"])  # Mostra la configurazione scelta
 
 
-# Recuperiamo la migliore configurazione F1
-# dell'algoritmo selezionato.
+# ADDESTRAMENTO DEFINITIVO
 
-riga_scelta = migliori_modelli[
-    migliori_modelli["algoritmo"] == modello_scelto
-].iloc[0]
+if modello_scelto == "KNN":  # Prepara il KNN definitivo
+    scaler_finale = StandardScaler()  # Crea lo scaler finale
+    X_train_finale = scaler_finale.fit_transform(X_train)  # Standardizza tutto lo storico
+    X_test_finale = scaler_finale.transform(X_test)  # Standardizza i questionari con lo stesso scaler
+    modello_finale = KNeighborsClassifier(n_neighbors=int(riga_scelta["k"]))  # Usa il K migliore
 
-print("\nMODELLO SELEZIONATO:", modello_scelto)
-
-print("CONFIGURAZIONE:", riga_scelta["configurazione"])
-
-
-# ============================================================
-# 7.13 ADDESTRAMENTO DEFINITIVO
-# ============================================================
-
-# Creiamo il modello utilizzando i parametri migliori
-# individuati durante il confronto.
-
-if modello_scelto == "KNN":
-
-    # Normalizziamo tutti i dati storici.
-
-    scaler_finale = StandardScaler()
-
-    X_train_finale = scaler_finale.fit_transform(X_train)
-
-    X_test_finale = scaler_finale.transform(X_test)
-
-    modello_finale = KNeighborsClassifier(
-        n_neighbors=int(riga_scelta["k"])
-    )
-
-
-elif modello_scelto == "Decision Tree":
-
-    X_train_finale = X_train
-
-    X_test_finale = X_test
-
-    profondita = riga_scelta["max_depth"]
-
-    if pd.isna(profondita):
-        profondita = None
+elif modello_scelto == "Decision Tree":  # Prepara l'albero decisionale definitivo
+    X_train_finale = X_train  # Mantiene le caratteristiche originali
+    X_test_finale = X_test  # Mantiene i questionari originali
+    profondita = riga_scelta["max_depth"]  # Recupera la profondità selezionata
+    if pd.isna(profondita):  # Controlla se la profondità è illimitata
+        profondita = None  # Non impone un limite
     else:
-        profondita = int(profondita)
-
+        profondita = int(profondita)  # Converte la profondità in intero
     modello_finale = DecisionTreeClassifier(
-        criterion=riga_scelta["criterio"],
-        max_depth=profondita,
-        random_state=42
+        criterion=riga_scelta["criterio"],  # Usa il criterio selezionato
+        max_depth=profondita,  # Usa la profondità selezionata
+        random_state=42  # Rende riproducibile il risultato
     )
 
-
-elif modello_scelto == "Random Forest":
-
-    X_train_finale = X_train
-
-    X_test_finale = X_test
-
-    profondita = riga_scelta["max_depth"]
-
-    if pd.isna(profondita):
-        profondita = None
+elif modello_scelto == "Random Forest":  # Prepara la foresta definitiva
+    X_train_finale = X_train  # Mantiene le caratteristiche originali
+    X_test_finale = X_test  # Mantiene i questionari originali
+    profondita = riga_scelta["max_depth"]  # Recupera la profondità selezionata
+    if pd.isna(profondita):  # Controlla se la profondità è illimitata
+        profondita = None  # Non impone un limite
     else:
-        profondita = int(profondita)
-
+        profondita = int(profondita)  # Converte la profondità in intero
     modello_finale = RandomForestClassifier(
-        n_estimators=int(riga_scelta["n_estimators"]),
-        max_depth=profondita,
-        random_state=42,
-        n_jobs=-1
+        n_estimators=int(riga_scelta["n_estimators"]),  # Usa il numero di alberi selezionato
+        max_depth=profondita,  # Usa la profondità selezionata
+        random_state=42,  # Rende riproducibile il risultato
+        n_jobs=-1  # Usa tutti i processori disponibili
     )
 
-
-# Addestriamo il modello scelto su tutti i pazienti storici.
-
-modello_finale.fit(
-    X_train_finale,
-    y_train
-)
+modello_finale.fit(X_train_finale, y_train)  # Addestra sui soggetti storici
 
 
-# ============================================================
-# 7.14 PREVISIONI SUI NUOVI UTENTI
-# ============================================================
+# PREVISIONI SUI QUESTIONARI
 
-# Applichiamo il modello ai nuovi questionari.
-
-previsioni = modello_finale.predict(X_test_finale)
-
-probabilita = modello_finale.predict_proba(X_test_finale)
-
-# Individuiamo la colonna relativa alla classe 1.
-
-indice_evento = list(modello_finale.classes_).index(1)
-
-probabilita_evento = (
-    probabilita[:, indice_evento] * 100
-)
+previsioni = modello_finale.predict(X_test_finale)  # Prevede la classe 0 o 1
+probabilita = modello_finale.predict_proba(X_test_finale)  # Calcola le probabilità stimate
+indice_evento = list(modello_finale.classes_).index(1)  # Trova la colonna della classe positiva
+probabilita_evento = probabilita[:, indice_evento] * 100  # Converte le probabilità in percentuale
 
 
-# ============================================================
-# 7.15 RISULTATI HEART VISION
-# ============================================================
+# TABELLA DEI RISULTATI
 
-risultati = pd.DataFrame({
-
-    "utente": range(1, len(X_test) + 1),
-
-    "previsione": previsioni,
-
-    "probabilita_evento_percentuale": (
-        probabilita_evento.round(2)
-    )
-
+risultati = pd.DataFrame({  # Costruisce la tabella delle previsioni
+    "utente": range(1, len(X_test) + 1),  # Numera le righe del risultato
+    "previsione": previsioni,  # Riporta la classe prevista
+    "probabilita_evento_percentuale": probabilita_evento.round(2)  # Riporta la percentuale stimata
 })
 
-print("\nMODELLO UTILIZZATO:", modello_scelto)
-
-print("\nRISULTATI HEART VISION:")
-
-print(risultati)
+print("\nMODELLO UTILIZZATO:", modello_scelto)  # Mostra il modello definitivo
+print("\nRISULTATI HEART VISION:")  # Introduce la tabella
+print(risultati)  # Mostra tutte le previsioni
