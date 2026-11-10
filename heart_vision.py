@@ -1339,3 +1339,195 @@ print("\nRISULTATI HEART VISION:")
 
 print(risultati)
 
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+# Impostiamo lo stile grafico pulito
+sns.set_theme(style="whitegrid")
+
+# 1. Definiamo la variabile target se non è già presente
+target = "evento_coronarico_10_anni"
+
+# 2. Caricamento di df_X se non è già in memoria
+try:
+  df_X
+except NameError:
+  df_X = pd.read_csv("Dataset_storico/HEARTVISION_dataset_completo.csv")
+  if "bmi" not in df_X.columns:
+    df_X["bmi"] = (
+        df_X["peso_kg"] / (df_X["altezza_cm"] / 100) ** 2
+    ).round(2)
+
+
+# ============================================================
+# GRAFICO 1: Impatto dei Fattori di Rischio Principali
+# ============================================================
+fattori_rischio = [
+    "fumatore",
+    "diabete",
+    "colesterolo_alto",
+    "alcol",
+    "ictus_precedente",
+    "ipertensione",
+]
+
+medie_rischio = []
+for f in fattori_rischio:
+  # Calcoliamo la percentuale di rischio sul target del dataset storico
+  rischio_si = df_X[df_X[f] == 1][target].mean() * 100
+  medie_rischio.append({"Fattore": f.upper(), "Rischio percentuale (%)": rischio_si})
+
+df_fattori_plot = pd.DataFrame(medie_rischio).sort_values(
+    by="Rischio percentuale (%)", ascending=False
+)
+
+plt.figure(figsize=(11, 6))
+
+bars = plt.bar(
+    df_fattori_plot["Fattore"],
+    df_fattori_plot["Rischio percentuale (%)"],
+    color="#FF27BE",
+    alpha=0.85,
+    width=0.55,
+)
+
+plt.title(
+    "HEARTVISION - Incidenza dei Fattori di Rischio a 10 Anni",
+    fontsize=14,
+    fontweight="bold",
+    pad=15,
+)
+plt.xlabel("Fattore di Rischio", fontsize=12, labelpad=10)
+plt.ylabel("Percentuale di Evento Coronarico (%)", fontsize=12)
+plt.ylim(0, max(df_fattori_plot["Rischio percentuale (%)"]) * 1.2)
+
+for bar in bars:
+  yval = bar.get_height()
+  plt.text(
+      bar.get_x() + bar.get_width() / 2.0,
+      yval + 0.5,
+      f"{yval:.1f}%",
+      ha="center",
+      va="bottom",
+      fontsize=10,
+      fontweight="bold",
+  )
+
+plt.xticks(rotation=0, fontsize=10, fontweight="bold")
+plt.tight_layout()
+plt.show()
+
+
+# ============================================================
+# GRAFICO 2: Confronto Finale dei Modelli (Decision Tree vs Altri)
+# ============================================================
+# (Nota: richiede che il DataFrame 'confronto' sia stato generato in precedenza)
+migliori_per_algoritmo = (
+    confronto.loc[confronto.groupby("algoritmo")["f1_score"].idxmax()]
+    .copy()
+    .reset_index(drop=True)
+)
+
+plt.figure(figsize=(9, 5))
+x = np.arange(len(migliori_per_algoritmo))
+width = 0.35
+
+plt.bar(
+    x - width / 2,
+    migliori_per_algoritmo["f1_score"],
+    width,
+    label="F1 Score",
+    color="#4B0082",
+    alpha=0.85,
+)
+plt.bar(
+    x + width / 2,
+    migliori_per_algoritmo["recall"],
+    width,
+    label="Recall",
+    color="#6A5ACD",
+    alpha=0.85,
+)
+
+plt.title(
+    "HEARTVISION - Confronto Metriche: Perché il Decision Tree eccelle",
+    fontsize=14,
+    fontweight="bold",
+    pad=15,
+)
+plt.xlabel("Algoritmo di Machine Learning", fontsize=12, labelpad=10)
+plt.ylabel("Punteggio medio (Cross-Validation)", fontsize=12)
+plt.xticks(x, migliori_per_algoritmo["algoritmo"], fontweight="bold", rotation=0)
+plt.ylim(0, 1.1)
+plt.legend(loc="upper right")
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+# Evidenziamo il Decision Tree con una nota testuale nel grafico
+dt_idx = migliori_per_algoritmo[
+    migliori_per_algoritmo["algoritmo"] == "Decision Tree"
+].index[0]
+dt_f1 = migliori_per_algoritmo.loc[dt_idx, "f1_score"]
+plt.annotate(
+    "Miglior equilibrio\npredittivo",
+    xy=(dt_idx - width / 2, dt_f1),
+    xytext=(dt_idx, dt_f1 + 0.1),
+    ha="center",
+    arrowprops=dict(facecolor="black", shrink=0.05, width=1, headwidth=6),
+    fontweight="bold",
+    color="darkgreen",
+)
+
+plt.tight_layout()
+plt.show()
+
+
+# ============================================================
+# GRAFICO 3: Decision Tree - Prestazioni per Profondità e Criteri
+# ============================================================
+decision_grafico = confronto[confronto["algoritmo"] == "Decision Tree"].copy()
+
+# Prepariamo le etichette delle profondità (None diventa "Illimitata")
+decision_grafico["profondita"] = decision_grafico["max_depth"].apply(
+    lambda valore: "Illimitata" if pd.isna(valore) else str(int(valore))
+)
+
+# Creiamo una tabella pivot con F1 Score per criterio e profondità
+tabella_decision = decision_grafico.pivot(
+    index="profondita", columns="criterio", values="f1_score"
+)
+
+# Ordiniamo correttamente l'asse X delle profondità
+indici_ordinati = [
+    p for p in ["3", "5", "10", "Illimitata"] if p in tabella_decision.index
+]
+tabella_decision = tabella_decision.reindex(indici_ordinati)
+
+plt.figure(figsize=(10, 6))
+
+for criterio in tabella_decision.columns:
+  plt.plot(
+      tabella_decision.index,
+      tabella_decision[criterio],
+      marker="o",
+      linewidth=2.5,
+      markersize=8,
+      label=f"Criterio: {criterio}",
+  )
+
+plt.title(
+    "HEARTVISION - Decision Tree: Impatto di Profondità e Criteri sul F1 Score",
+    fontsize=14,
+    fontweight="bold",
+    pad=15,
+)
+plt.xlabel("Profondità Massima dell'Albero", fontsize=12, labelpad=10)
+plt.ylabel("F1 Score Medio", fontsize=12)
+plt.ylim(0, 1.1)
+plt.grid(True, linestyle="--", alpha=0.7)
+plt.legend(title="Parametro di Split", fontsize=11)
+plt.xticks(fontweight="bold")
+plt.tight_layout()
+plt.show()
