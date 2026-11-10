@@ -1,0 +1,16 @@
+Relazione del 10 Novembre, ore 12.00 sul progetto Heart Vision.
+
+Nel file principale (main.py) stiamo testando le seguenti funzionalità:
+-sistema di pulizia e conversione dei dati:  il programma deve gestire in automatico le risposte testuali dei questionari
+(convertendo "sì/no" o "maschio/femmina" in 0 e 1)
+-controllare la coerenza logica dei dati 
+(ad esempio assicurandosi che chi non fuma non abbia un numero di sigarette giornaliere superiore a zero o che i consumi di alcol tornino)
+-calcolare il BMI in automatico e sfruttare il dataset Framingham storico come punto di riferimento per correggere eventuali anomalie nei nuovi profili.
+
+Nei file di supporto che presto accorperemo(Menu_Test.py/MachineLearning_Test.py)
+abbiamo:
+-impostato la struttura del menu interattivo con menu_test.py
+
+-sviluppato l'intero blocco di Machine Learning: qui utilizziamo l'algoritmo K-Nearest Neighbors (KNN) insieme allo StandardScaler
+per normalizzare i dati senza errori, addestrare il modello sullo storico ed estrarre la previsione
+di rischio e la percentuale di probabilità per ogni nuovo utente.
