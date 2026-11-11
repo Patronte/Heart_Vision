@@ -551,6 +551,7 @@ def esegui_confronto_modelli():  # Valuta KNN, Decision Tree e Random Forest
                 modello = DecisionTreeClassifier(
                     criterion=criterio,  # Utilizza Gini oppure Entropy
                     max_depth=profondita,  # Imposta la profondità
+                    min_samples_leaf=20,  # Richiede almeno 20 pazienti per foglia
                     random_state=42  # Rende riproducibile il modello
                 )
 
@@ -786,6 +787,7 @@ def esegui_previsioni():  # Addestra automaticamente il modello con F1-score mig
         modello_finale = DecisionTreeClassifier(
             criterion=riga_scelta["criterio"],  # Utilizza il criterio migliore
             max_depth=profondita,  # Utilizza la profondità migliore
+            min_samples_leaf=20,  # Richiede almeno 20 pazienti per foglia
             random_state=42  # Rende riproducibile il modello
         )
 
