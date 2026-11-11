@@ -581,15 +581,17 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
         print(f"{colonna}: {soggetto[colonna]}")
 
 
-    # DEFINIZIONE DELLE VARIABILI NUMERICHE DA CONFRONTARE
+    # DEFINIZIONE DELLE VARIABILI NUMERICHE (TUTTE INCLUSE)
 
     variabili_numeriche = {
         "eta": "Età (anni)",
         "sigarette_giorno": "Sigarette/giorno",
+        "peso_kg": "Peso (kg)",
+        "altezza_cm": "Altezza (cm)",
         "bmi": "BMI",
         "frequenza_cardiaca": "Frequenza cardiaca",
         "sere_alcol_settimana": "Sere con alcol/settimana"
-    }  # Seleziona le caratteristiche da confrontare con Framingham
+    }
 
     nomi_variabili = []  # Memorizza le etichette del grafico
     ranghi_percentuali = []  # Memorizza le posizioni percentili
@@ -625,9 +627,10 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
         ranghi_percentuali.append(rango)
         valori_reali.append(valore)
 
+        # Evitiamo il viola: usiamo un blu acciaio per i valori normali e un rosso corallo/arancio elegante per i valori elevati
         colori_numerici.append(
-            "#FF27BE" if elevato else "#4682B4"
-        )  # Utilizza il fucsia per i valori elevati
+            "#E85D75" if elevato else "#3A86FF"
+        )
 
         if elevato:
 
@@ -647,44 +650,15 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
         print("\nNessuna delle caratteristiche selezionate supera il 90° percentile.")
 
 
-    # CONTROLLO DEGLI INDICATORI BINARI
+    # GRAFICO INDIVIDUALE DEL PARTECIPANTE (SFONDO SCURO LEGGERO E TESTI BIANCHI)
 
-    indicatori = {
-        "fumatore": "Fumatore",
-        "farmaci_pressione": "Farmaci per pressione",
-        "ictus_precedente": "Ictus precedente",
-        "ipertensione": "Ipertensione",
-        "diabete": "Diabete",
-        "colesterolo_alto": "Colesterolo alto",
-        "alcol": "Consumo di alcol",
-        "sport": "Attività sportiva"
-    }  # Elenca le caratteristiche presenti o assenti
+    figura, asse_numerico = plt.subplots(
+        figsize=(12, 8)
+    )
 
-    nomi_indicatori = []
-    valori_indicatori = []
-
-    print("\nINDICATORI DICHIARATI DAL PARTECIPANTE:")
-
-    for colonna, nome in indicatori.items():
-
-        presente = int(soggetto[colonna])  # Legge il valore 0 oppure 1
-
-        nomi_indicatori.append(nome)
-        valori_indicatori.append(presente)
-
-        risposta = "SI" if presente == 1 else "NO"
-
-        print(f"{nome}: {risposta}")
-
-
-    # GRAFICO INDIVIDUALE DEL PARTECIPANTE
-
-    figura, (asse_numerico, asse_binario) = plt.subplots(
-        2,
-        1,
-        figsize=(12, 11),
-        gridspec_kw={"height_ratios": [1, 1.3]}
-    )  # Crea due pannelli all'interno dello stesso grafico
+    # Impostiamo uno sfondo scuro ma leggero (es. grigio scuro/ardesia: #1E1E2F o #222222)
+    figura.patch.set_facecolor("#1E1E2F")
+    asse_numerico.set_facecolor("#252538")
 
 
     # GRAFICO DELLE CARATTERISTICHE NUMERICHE
@@ -692,28 +666,48 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
     barre = asse_numerico.barh(
         nomi_variabili,
         ranghi_percentuali,
-        color=colori_numerici
-    )  # Mostra la posizione percentile delle variabili
+        color=colori_numerici,
+        height=0.55
+    )
 
+    # Linea di riferimento verticale
     asse_numerico.axvline(
         90,
-        color="black",
+        color="#FFD166",  # Giallo chiaro visibile sullo sfondo scuro
         linestyle="--",
-        label="90° percentile"
-    )  # Evidenzia la soglia statistica
+        linewidth=2,
+        label="Soglia di riferimento (Dataset Framingham)"
+    )
 
     asse_numerico.set_xlim(0, 115)
 
+    # Configurazione colori assi e etichette in bianco
     asse_numerico.set_xlabel(
-        "Posizione percentile rispetto a Framingham"
+        "Posizione percentile rispetto a Framingham", fontsize=11, fontweight="bold", color="white"
+    )
+    
+    asse_numerico.set_title(
+        f"Confronto completo delle feature - Utente ID {identificativo}",
+        fontsize=13,
+        fontweight="bold",
+        color="white",
+        pad=15
     )
 
-    asse_numerico.set_title(
-        "Confronto delle caratteristiche numeriche con lo storico"
-    )
+    # Colore delle etichette sugli assi (tick labels) in bianco
+    asse_numerico.tick_params(axis='x', colors='white')
+    asse_numerico.tick_params(axis='y', colors='white')
+
+    # Modifica colore dei bordi del grafico (spines) per renderli chiari/armoniosi
+    for spine in asse_numerico.spines.values():
+        spine.set_edgecolor("#555566")
 
     asse_numerico.invert_yaxis()
-    asse_numerico.legend()
+    
+    # Legenda con testo bianco e sfondo coordinato
+    legenda = asse_numerico.legend(loc="lower right", facecolor="#252538", edgecolor="#555566")
+    for text in legenda.get_texts():
+        text.set_color("white")
 
     for barra, valore in zip(barre, valori_reali):
 
@@ -722,63 +716,27 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
             barra.get_y() + barra.get_height() / 2,
             f"Valore: {valore:g}",
             va="center",
-            fontsize=9
-        )  # Mostra il valore effettivo accanto alla barra
+            fontsize=10,
+            fontweight="bold",
+            color="white"  # Testo bianco accanto alle barre
+        )
 
 
-    # GRAFICO DEGLI INDICATORI BINARI
-
-    colori_indicatori = [
-        "#E85D75" if valore == 1 else "#B0BEC5"
-        for valore in valori_indicatori
-    ]  # Distingue gli indicatori presenti da quelli assenti
-
-    barre_bin = asse_binario.barh(
-        nomi_indicatori,
-        valori_indicatori,
-        color=colori_indicatori
-    )  # Mostra gli indicatori binari
-
-    asse_binario.set_xlim(0, 1.2)
-    asse_binario.set_xticks([0, 1])
-
-    asse_binario.set_xlabel(
-        "Indicatore (0 = NO, 1 = SI)"
-    )
-
-    asse_binario.set_title(
-        "Caratteristiche dichiarate dal partecipante"
-    )
-
-    asse_binario.invert_yaxis()
-
-    for barra, valore in zip(barre_bin, valori_indicatori):
-
-        asse_binario.text(
-            valore + 0.04,
-            barra.get_y() + barra.get_height() / 2,
-            "SI" if valore == 1 else "NO",
-            va="center",
-            fontsize=9
-        )  # Scrive SI oppure NO accanto all'indicatore
-
-
-    # TITOLO E VISUALIZZAZIONE FINALE
+    # TITOLO GLOBALE DELLA FIGURA IN BIANCO
 
     figura.suptitle(
-        f"HEARTVISION - Utente {identificativo} | "
+        f"HEARTVISION - Analisi Dettagliata | Utente {identificativo} | "
         f"Classe {classe} | "
         f"Stima classe 1: {percentuale:.2f}%",
-        fontsize=13,
-        fontweight="bold"
+        fontsize=14,
+        fontweight="bold",
+        color="white"
     )
 
-    figura.tight_layout(rect=[0, 0, 1, 0.96])
+    figura.tight_layout(rect=[0, 0, 1, 0.95])
 
-    plt.show()  # Visualizza il grafico individuale
-
-
-
+    plt.show()  # Visualizza il grafico finale
+    
 # CONFRONTO DEGLI ALGORITMI MACHINE LEARNING
 
 def esegui_confronto_modelli():  # Valuta KNN, Decision Tree e Random Forest
