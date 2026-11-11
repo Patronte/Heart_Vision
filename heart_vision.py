@@ -891,7 +891,7 @@ def mostra_grafici():  # Visualizza il grafico fucsia dei fattori di rischio
     bars = plt.bar(
         df_fattori_plot["Fattore"],
         df_fattori_plot["Rischio percentuale (%)"],
-        color="#FF27BE",
+        color="#790896",
         alpha=0.85,
         width=0.55
     )  # Disegna le barre dei fattori
@@ -945,69 +945,125 @@ def mostra_risultati():  # Mostra la tabella e il grafico delle previsioni
 
 # GRAFICO DELLE PREVISIONI SUI QUESTIONARI
 
-def mostra_grafico_questionari():  # Visualizza le previsioni dell'ultimo CSV
+def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello con testi dritti e leggibili
 
     if "risultati" not in globals() or risultati is None or risultati.empty:
         print("Prima esegui le previsioni sul CSV (opzione 4).")
         return
 
-    etichette = [f"Utente {n}" for n in risultati["utente"]]  # Crea le etichette dei partecipanti
+    df = risultati.copy()
+    totale_utenti = len(df)
 
-    percentuali = risultati["probabilita_evento_percentuale"]  # Recupera le probabilità stimate
-    classi = risultati["previsione"]  # Recupera le classi previste
+    # Suddivisione delle probabilità per classe prevista
+    c0 = df[df["previsione"] == 0]["probabilita_evento_percentuale"]
+    c1 = df[df["previsione"] == 1]["probabilita_evento_percentuale"]
 
-    colori = [
-        "#E85D75" if classe == 1 else "#4682B4"
-        for classe in classi
-    ]  # Rosso per la classe 1 e blu per la classe 0
+    # Conteggio utenti nelle 4 fasce di probabilità
+    n_c0_b1 = len(c0[c0 <= 25])   # Classe 0: rischio molto basso (0% - 25%)
+    n_c0_b2 = len(c0[c0 > 25])    # Classe 0: rischio medio-basso (25% - 50%)
+    n_c1_b1 = len(c1[c1 <= 75])   # Classe 1: rischio moderato (50% - 75%)
+    n_c1_b2 = len(c1[c1 > 75])    # Classe 1: rischio elevato (75% - 100%)
 
-    altezza = max(6, len(risultati) * 0.45)  # Adatta il grafico al numero di utenti
+    # Costruzione dinamica anello interno (Macro Classi)
+    valori_interno = []
+    colori_interno = []
+    etichette_interno_legenda = []
 
-    plt.figure(figsize=(11, altezza))  # Crea una figura con altezza dinamica
+    if len(c0) > 0:
+        valori_interno.append(len(c0))
+        colori_interno.append("#4682B4")
+        etichette_interno_legenda.append(f"Classe 0 - Basso Rischio ({len(c0)} utenti)")
 
-    barre = plt.barh(
-        etichette,
-        percentuali,
-        color=colori,
-        alpha=0.85
-    )  # Disegna una barra per ogni partecipante
+    if len(c1) > 0:
+        valori_interno.append(len(c1))
+        colori_interno.append("#E85D75")
+        etichette_interno_legenda.append(f"Classe 1 - Rischio Evento ({len(c1)} utenti)")
 
-    plt.axvline(
-        x=50,
-        color="gray",
-        linestyle="--",
-        label="Riferimento 50%"
-    )  # Mostra la soglia percentuale di riferimento
+    # Costruzione dinamica anello esterno (Fasce di probabilità)
+    fasce_config = [
+        (n_c0_b1, "#2C5E8A", "Fascia 0% - 25%"),
+        (n_c0_b2, "#6BAED6", "Fascia 25% - 50%"),
+        (n_c1_b1, "#C93B52", "Fascia 50% - 75%"),
+        (n_c1_b2, "#F28C9E", "Fascia 75% - 100%")
+    ]
 
-    for barra, percentuale, classe in zip(barre, percentuali, classi):
+    valori_esterno = []
+    colori_esterno = []
+    etichette_esterno_legenda = []
 
-        posizione_y = barra.get_y() + barra.get_height() / 2  # Trova il centro della barra
+    for conteggio, colore, nome_fascia in fasce_config:
+        if conteggio > 0:
+            valori_esterno.append(conteggio)
+            colori_esterno.append(colore)
+            etichette_esterno_legenda.append(f"{nome_fascia} ({conteggio} utenti)")
 
-        if percentuale >= 90:
-            posizione_x = percentuale - 2  # Sposta il testo dentro le barre lunghe
-            allineamento = "right"
-        else:
-            posizione_x = percentuale + 1  # Sposta il testo dopo le barre corte
-            allineamento = "left"
+    # Funzione helper per mostrare sia la % sul totale sia il numero esatto di utenti
+    def formatta_etichetta_spicchio(pct):
+        n_persone = int(round(pct / 100.0 * totale_utenti))
+        if pct < 5:  # Nasconde il testo se lo spicchio è troppo piccolo
+            return ""
+        return f"{pct:.1f}%\n({n_persone} ut.)"
 
-        plt.text(
-            posizione_x,
-            posizione_y,
-            f"{percentuale:.2f}% - Classe {classe}",
-            va="center",
-            ha=allineamento,
-            fontsize=9
-        )  # Scrive percentuale e classe accanto alla barra
+    fig, ax = plt.subplots(figsize=(12, 7.5))
 
-    plt.title("HEARTVISION - Previsioni sul CSV analizzato")  # Imposta il titolo
-    plt.xlabel("Probabilità stimata della classe 1 (%)")  # Imposta l'asse orizzontale
-    plt.ylabel("Partecipanti del questionario")  # Imposta l'asse verticale
-    plt.xlim(0, 100)  # Imposta la scala percentuale
-    plt.gca().invert_yaxis()  # Mantiene il primo partecipante in alto
-    plt.grid(axis="x", linestyle="--", alpha=0.3)  # Mostra la griglia
-    plt.legend()  # Mostra la legenda
-    plt.tight_layout()  # Ottimizza la disposizione
-    plt.show()  # Visualizza il grafico
+    # 1. ANELLO ESTERNO (Fasce di probabilità - testi orizzontali)
+    wedges_ext, _, autotexts_ext = ax.pie(
+        valori_esterno,
+        radius=1.15,
+        colors=colori_esterno,
+        startangle=90,
+        counterclock=False,
+        wedgeprops=dict(width=0.35, edgecolor="white", linewidth=2),
+        autopct=formatta_etichetta_spicchio,
+        pctdistance=0.82,
+        textprops=dict(color="black", fontsize=9, fontweight="bold", ha="center", va="center")
+    )
+
+    # 2. ANELLO INTERNO (Macro Classi - testi orizzontali)
+    wedges_int, _, autotexts_int = ax.pie(
+        valori_interno,
+        radius=0.80,
+        colors=colori_interno,
+        startangle=90,
+        counterclock=False,
+        wedgeprops=dict(width=0.35, edgecolor="white", linewidth=2),
+        autopct=formatta_etichetta_spicchio,
+        pctdistance=0.74,
+        textprops=dict(color="black", fontsize=10, fontweight="bold", ha="center", va="center")
+    )
+
+    # Testo centrale nel foro della ciambella con il totale dei partecipanti
+    ax.text(
+        0, 0,
+        f"Totale\n{totale_utenti} Utenti",
+        ha="center", va="center",
+        fontsize=12, fontweight="bold", color="#333333"
+    )
+
+    # Legenda laterale completa per leggere subito classi e fasce di rischio
+    tutti_wedges = wedges_int + wedges_ext
+    tutte_etichette = etichette_interno_legenda + etichette_esterno_legenda
+
+    ax.legend(
+        tutti_wedges,
+        tutte_etichette,
+        title="Legenda Classi e Fasce di Probabilità",
+        title_fontsize=10,
+        fontsize=9,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        frameon=True
+    )
+
+    ax.set_title(
+        "HEARTVISION - Distribuzione Utenti per Classe e Fascia di Rischio",
+        fontsize=14,
+        fontweight="bold",
+        pad=15
+    )
+
+    plt.tight_layout()
+    plt.show()
 
 
 # MENU PRINCIPALE
