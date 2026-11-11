@@ -394,7 +394,10 @@ def controllo_csv(df, tipo="storico", riferimento=None):
 
 def carica_dataset():  # Importa e prepara entrambi i dataset
 
-    global df_X, df_y, risultati  # Rende accessibili i dataset e i risultati
+    global df_X, df_y, risultati, email_questionari  # Condivide i dataset e gli identificativi
+
+    risultati = None  # Azzera le previsioni del CSV precedente
+    email_questionari = None  # Azzera le email del CSV precedente
 
     df_X = pd.read_csv(
         "Dataset_storico/HEARTVISION_dataset_completo.csv"  # Legge Framingham
@@ -417,6 +420,45 @@ def carica_dataset():  # Importa e prepara entrambi i dataset
 
     df_y = pd.read_csv(percorso_csv)  # Carica il CSV indicato dall'utente
 
+
+    # RECUPERO DEGLI IDENTIFICATIVI EMAIL
+
+    colonna_email = None  # Memorizza il nome della colonna con gli identificativi
+
+    nomi_email = [  # Elenca le possibili intestazioni
+        "email",
+        "indirizzo email",
+        "email address",
+        "username"
+    ]
+
+    for nome_cercato in nomi_email:  # Cerca una colonna contenente le email
+
+        for nome_colonna in df_y.columns:
+
+            if nome_colonna.strip().lower() == nome_cercato:
+                colonna_email = nome_colonna
+                break
+
+        if colonna_email is not None:
+            break
+
+    if colonna_email is not None:  # Conserva gli identificativi prima della conversione
+
+        email_questionari = (
+            df_y[colonna_email]
+            .astype("string")
+            .str.strip()
+            .str.lower()
+            .reset_index(drop=True)
+        )  # Mantiene le email nello stesso ordine delle righe
+
+        print("\nIdentificativi email acquisiti correttamente.")
+
+    else:
+        print("\nNessuna colonna email trovata: analisi individuale non disponibile.")
+
+    
     print(f"\nCSV caricato: {percorso_csv}")  # Mostra il file selezionato
     print(f"Partecipanti presenti: {len(df_y)}")  # Conta le righe del CSV
 
@@ -443,6 +485,298 @@ def carica_dataset():  # Importa e prepara entrambi i dataset
 
     print("\nHEARTVISION - Operazioni completate!")
     print("\nCaricamento completato.")
+    
+    
+
+# ANALISI INDIVIDUALE DEL PARTECIPANTE
+
+def analizza_partecipante():  # Analizza un partecipante tramite la sua email
+
+    # CONTROLLO DEI DATI DISPONIBILI
+
+    if "risultati" not in globals() or risultati is None or risultati.empty:
+        print("Prima carica il CSV ed esegui le previsioni (opzioni 1, 2 e 4).")
+        return
+
+    if "email_questionari" not in globals() or email_questionari is None:
+        print("Il CSV caricato non contiene una colonna email o Username.")
+        return
+
+    if len(email_questionari) != len(df_y) or len(risultati) != len(df_y):
+        print("I dati non corrispondono: ricarica il CSV ed esegui le previsioni.")
+        return
+
+
+    # RICERCA DEL PARTECIPANTE TRAMITE EMAIL
+
+    email_cercata = input(
+        "\nInserisci l'email del partecipante: "
+    ).strip().lower()  # Legge l'identificativo inserito
+
+    if not email_cercata:
+        print("Devi inserire un indirizzo email.")
+        return
+
+    indici_trovati = email_questionari[
+        email_questionari == email_cercata
+    ].index.tolist()  # Cerca le righe associate all'email
+
+    if not indici_trovati:
+        print("Email non trovata nel CSV attualmente caricato.")
+        return
+
+    if len(indici_trovati) > 1:  # Gestisce più risposte della stessa email
+
+        numeri = [indice + 1 for indice in indici_trovati]
+
+        print(f"L'email è presente più volte, agli ID: {numeri}")
+
+        scelta_id = input(
+            "Inserisci l'ID del partecipante da analizzare: "
+        ).strip()
+
+        if not scelta_id.isdigit() or int(scelta_id) not in numeri:
+            print("ID non valido.")
+            return
+
+        indice = int(scelta_id) - 1
+
+    else:
+        indice = indici_trovati[0]  # Recupera la posizione della riga
+
+
+    # RECUPERO DEI DATI DEL PARTECIPANTE
+
+    soggetto = df_y.iloc[indice]  # Recupera le caratteristiche individuali
+
+    previsione = risultati.iloc[indice]  # Recupera la previsione già calcolata
+
+    identificativo = int(previsione["utente"])  # Recupera l'ID numerico
+
+    classe = int(previsione["previsione"])  # Recupera la classe prevista
+
+    percentuale = float(
+        previsione["probabilita_evento_percentuale"]
+    )  # Recupera la percentuale stimata
+
+
+    # RIEPILOGO DELLA PREVISIONE
+
+    print("\n" + "=" * 55)
+    print("          HEARTVISION - ANALISI INDIVIDUALE")
+    print("=" * 55)
+
+    print(f"\nID partecipante: {identificativo}")
+    print(f"Email: {email_cercata}")
+    print(f"Classe prevista: {classe}")
+    print(f"Probabilità stimata della classe 1: {percentuale:.2f}%")
+
+
+    # VISUALIZZAZIONE DI TUTTE LE CARATTERISTICHE
+
+    print("\nCARATTERISTICHE DEL PARTECIPANTE:")
+
+    for colonna in colonne + ["bmi"]:  # Mostra le 15 caratteristiche e il BMI
+
+        print(f"{colonna}: {soggetto[colonna]}")
+
+
+    # DEFINIZIONE DELLE VARIABILI NUMERICHE DA CONFRONTARE
+
+    variabili_numeriche = {
+        "eta": "Età (anni)",
+        "sigarette_giorno": "Sigarette/giorno",
+        "bmi": "BMI",
+        "frequenza_cardiaca": "Frequenza cardiaca",
+        "sere_alcol_settimana": "Sere con alcol/settimana"
+    }  # Seleziona le caratteristiche da confrontare con Framingham
+
+    nomi_variabili = []  # Memorizza le etichette del grafico
+    ranghi_percentuali = []  # Memorizza le posizioni percentili
+    colori_numerici = []  # Distingue i valori superiori al riferimento
+    valori_reali = []  # Memorizza i valori originali
+    variabili_elevate = []  # Registra le caratteristiche elevate
+
+
+    # CONTROLLO DEI VALORI ELEVATI
+
+    print("\nCONFRONTO CON IL DATASET STORICO - 90° PERCENTILE:")
+
+    for colonna, nome in variabili_numeriche.items():
+
+        valore = float(soggetto[colonna])  # Legge il valore individuale
+
+        storico = pd.to_numeric(
+            df_X[colonna],
+            errors="coerce"
+        ).dropna()  # Recupera i valori storici validi
+
+        limite = float(
+            storico.quantile(0.90)
+        )  # Calcola il 90° percentile del dataset storico
+
+        rango = float(
+            (storico <= valore).mean() * 100
+        )  # Calcola la posizione percentile individuale
+
+        elevato = valore > limite  # Controlla se supera il riferimento
+
+        nomi_variabili.append(nome)
+        ranghi_percentuali.append(rango)
+        valori_reali.append(valore)
+
+        colori_numerici.append(
+            "#FF27BE" if elevato else "#4682B4"
+        )  # Utilizza il fucsia per i valori elevati
+
+        if elevato:
+
+            variabili_elevate.append(nome)
+
+            stato = "SUPERIORE AL 90° PERCENTILE"
+
+        else:
+            stato = "Non supera il 90° percentile"
+
+        print(
+            f"{nome}: {valore:.2f} | "
+            f"90° percentile storico: {limite:.2f} | {stato}"
+        )
+
+    if not variabili_elevate:
+        print("\nNessuna delle caratteristiche selezionate supera il 90° percentile.")
+
+
+    # CONTROLLO DEGLI INDICATORI BINARI
+
+    indicatori = {
+        "fumatore": "Fumatore",
+        "farmaci_pressione": "Farmaci per pressione",
+        "ictus_precedente": "Ictus precedente",
+        "ipertensione": "Ipertensione",
+        "diabete": "Diabete",
+        "colesterolo_alto": "Colesterolo alto",
+        "alcol": "Consumo di alcol",
+        "sport": "Attività sportiva"
+    }  # Elenca le caratteristiche presenti o assenti
+
+    nomi_indicatori = []
+    valori_indicatori = []
+
+    print("\nINDICATORI DICHIARATI DAL PARTECIPANTE:")
+
+    for colonna, nome in indicatori.items():
+
+        presente = int(soggetto[colonna])  # Legge il valore 0 oppure 1
+
+        nomi_indicatori.append(nome)
+        valori_indicatori.append(presente)
+
+        risposta = "SI" if presente == 1 else "NO"
+
+        print(f"{nome}: {risposta}")
+
+
+    # GRAFICO INDIVIDUALE DEL PARTECIPANTE
+
+    figura, (asse_numerico, asse_binario) = plt.subplots(
+        2,
+        1,
+        figsize=(12, 11),
+        gridspec_kw={"height_ratios": [1, 1.3]}
+    )  # Crea due pannelli all'interno dello stesso grafico
+
+
+    # GRAFICO DELLE CARATTERISTICHE NUMERICHE
+
+    barre = asse_numerico.barh(
+        nomi_variabili,
+        ranghi_percentuali,
+        color=colori_numerici
+    )  # Mostra la posizione percentile delle variabili
+
+    asse_numerico.axvline(
+        90,
+        color="black",
+        linestyle="--",
+        label="90° percentile"
+    )  # Evidenzia la soglia statistica
+
+    asse_numerico.set_xlim(0, 115)
+
+    asse_numerico.set_xlabel(
+        "Posizione percentile rispetto a Framingham"
+    )
+
+    asse_numerico.set_title(
+        "Confronto delle caratteristiche numeriche con lo storico"
+    )
+
+    asse_numerico.invert_yaxis()
+    asse_numerico.legend()
+
+    for barra, valore in zip(barre, valori_reali):
+
+        asse_numerico.text(
+            barra.get_width() + 1,
+            barra.get_y() + barra.get_height() / 2,
+            f"Valore: {valore:g}",
+            va="center",
+            fontsize=9
+        )  # Mostra il valore effettivo accanto alla barra
+
+
+    # GRAFICO DEGLI INDICATORI BINARI
+
+    colori_indicatori = [
+        "#E85D75" if valore == 1 else "#B0BEC5"
+        for valore in valori_indicatori
+    ]  # Distingue gli indicatori presenti da quelli assenti
+
+    barre_bin = asse_binario.barh(
+        nomi_indicatori,
+        valori_indicatori,
+        color=colori_indicatori
+    )  # Mostra gli indicatori binari
+
+    asse_binario.set_xlim(0, 1.2)
+    asse_binario.set_xticks([0, 1])
+
+    asse_binario.set_xlabel(
+        "Indicatore (0 = NO, 1 = SI)"
+    )
+
+    asse_binario.set_title(
+        "Caratteristiche dichiarate dal partecipante"
+    )
+
+    asse_binario.invert_yaxis()
+
+    for barra, valore in zip(barre_bin, valori_indicatori):
+
+        asse_binario.text(
+            valore + 0.04,
+            barra.get_y() + barra.get_height() / 2,
+            "SI" if valore == 1 else "NO",
+            va="center",
+            fontsize=9
+        )  # Scrive SI oppure NO accanto all'indicatore
+
+
+    # TITOLO E VISUALIZZAZIONE FINALE
+
+    figura.suptitle(
+        f"HEARTVISION - Utente {identificativo} | "
+        f"Classe {classe} | "
+        f"Stima classe 1: {percentuale:.2f}%",
+        fontsize=13,
+        fontweight="bold"
+    )
+
+    figura.tight_layout(rect=[0, 0, 1, 0.96])
+
+    plt.show()  # Visualizza il grafico individuale
+
 
 
 # CONFRONTO DEGLI ALGORITMI MACHINE LEARNING
@@ -1082,6 +1416,7 @@ def menu_principale():  # Gestisce la navigazione del programma
         print("4. Addestramento automatico e previsione questionari")
         print("5. Grafico dei fattori di rischio")
         print("6. Risultati e grafico delle probabilità")
+        print("7. Studio singolo paziente")
         print("0. Esci")
 
         scelta = input("\nSeleziona un'opzione: ").strip()  # Legge l'opzione selezionata
@@ -1124,12 +1459,15 @@ def menu_principale():  # Gestisce la navigazione del programma
             elif scelta == "6":  # Mostra le previsioni e il relativo grafico
                 mostra_risultati()  # Mostra la tabella e il grafico delle probabilità
 
+            elif scelta == "7":  # Analizza il singolo partecipante
+                analizza_partecipante()  # Cerca l'email e mostra l'analisi individuale
+            
             elif scelta == "0":  # Termina il programma
                 print("Chiusura di HEARTVISION. Arrivederci!")
                 break
 
             else:
-                print("Opzione non valida. Inserisci un numero da 0 a 6.")
+                print("Opzione non valida. Inserisci un numero da 0 a 7.")
 
         except FileNotFoundError as errore:  # Gestisce i file mancanti
 
