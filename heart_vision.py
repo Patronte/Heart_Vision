@@ -405,9 +405,21 @@ def carica_dataset():  # Importa e prepara entrambi i dataset
         tipo="storico"  # Controlla e pulisce il dataset storico
     )
 
-    df_y = pd.read_csv(
-        "Dataset_questionari/Framingham_form.csv"  # Legge Google Forms
-    )
+    
+    # CARICAMENTO DEL CSV SCELTO DALL'UTENTE
+
+    percorso_csv = input("\nInserisci il percorso del CSV da analizzare: ").strip()  # Legge il percorso inserito
+
+    percorso_csv = percorso_csv.strip('"').strip("'")  # Rimuove eventuali virgolette copiate
+
+    if not percorso_csv:  # Controlla che sia stato inserito un percorso
+        raise ValueError("Devi inserire il percorso di un file CSV!")
+
+    df_y = pd.read_csv(percorso_csv)  # Carica il CSV indicato dall'utente
+
+    print(f"\nCSV caricato: {percorso_csv}")  # Mostra il file selezionato
+    print(f"Partecipanti presenti: {len(df_y)}")  # Conta le righe del CSV
+
 
     df_y = converti_questionario(df_y)  # Converte le risposte testuali
 
@@ -1150,6 +1162,73 @@ def mostra_risultati():  # Mostra la tabella delle previsioni
     print(risultati.to_string(index=False))  # Mostra tutti i partecipanti
 
 
+# GRAFICO DELLE PREVISIONI SUI QUESTIONARI
+
+def mostra_grafico_questionari():  # Visualizza le previsioni dell'ultimo CSV
+
+    if "risultati" not in globals() or risultati is None or risultati.empty:
+        print("Prima esegui le previsioni sul CSV (opzione 4).")
+        return
+
+    etichette = [f"Utente {n}" for n in risultati["utente"]]  # Crea le etichette dei partecipanti
+
+    percentuali = risultati["probabilita_evento_percentuale"]  # Recupera le probabilità stimate
+    classi = risultati["previsione"]  # Recupera le classi previste
+
+    colori = [
+        "#E85D75" if classe == 1 else "#4682B4"
+        for classe in classi
+    ]  # Rosso per la classe 1 e blu per la classe 0
+
+    altezza = max(6, len(risultati) * 0.45)  # Adatta il grafico al numero di utenti
+
+    plt.figure(figsize=(11, altezza))  # Crea una figura con altezza dinamica
+
+    barre = plt.barh(
+        etichette,
+        percentuali,
+        color=colori,
+        alpha=0.85
+    )  # Disegna una barra per ogni partecipante
+
+    plt.axvline(
+        x=50,
+        color="gray",
+        linestyle="--",
+        label="Riferimento 50%"
+    )  # Mostra la soglia percentuale di riferimento
+
+    for barra, percentuale, classe in zip(barre, percentuali, classi):
+
+        posizione_y = barra.get_y() + barra.get_height() / 2  # Trova il centro della barra
+
+        if percentuale >= 90:
+            posizione_x = percentuale - 2  # Sposta il testo dentro le barre lunghe
+            allineamento = "right"
+        else:
+            posizione_x = percentuale + 1  # Sposta il testo dopo le barre corte
+            allineamento = "left"
+
+        plt.text(
+            posizione_x,
+            posizione_y,
+            f"{percentuale:.2f}% - Classe {classe}",
+            va="center",
+            ha=allineamento,
+            fontsize=9
+        )  # Scrive percentuale e classe accanto alla barra
+
+    plt.title("HEARTVISION - Previsioni sul CSV analizzato")  # Imposta il titolo
+    plt.xlabel("Probabilità stimata della classe 1 (%)")  # Imposta l'asse orizzontale
+    plt.ylabel("Partecipanti del questionario")  # Imposta l'asse verticale
+    plt.xlim(0, 100)  # Imposta la scala percentuale
+    plt.gca().invert_yaxis()  # Mantiene il primo partecipante in alto
+    plt.grid(axis="x", linestyle="--", alpha=0.3)  # Mostra la griglia
+    plt.legend()  # Mostra la legenda
+    plt.tight_layout()  # Ottimizza la disposizione
+    plt.show()  # Visualizza il grafico
+
+
 # MENU PRINCIPALE
 
 def menu_principale():  # Gestisce la navigazione del programma
@@ -1203,7 +1282,8 @@ def menu_principale():  # Gestisce la navigazione del programma
                 esegui_previsioni()
 
             elif scelta == "5":  # Visualizza i grafici
-                mostra_grafici()
+                mostra_grafici() # Mostra grafici già esistenti 
+                mostra_grafico_questionari() # Mostra i grafici relativi all'ultimo csv studiato 
 
             elif scelta == "6":  # Mostra le previsioni
                 mostra_risultati()
