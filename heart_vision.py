@@ -394,7 +394,7 @@ def controllo_csv(df, tipo="storico", riferimento=None):
 
 def carica_dataset():  # Importa e prepara entrambi i dataset
 
-    global df_X, df_y  # Rende accessibili i DataFrame alle altre funzioni
+    global df_X, df_y, risultati  # Rende accessibili i dataset e i risultati
 
     df_X = pd.read_csv(
         "Dataset_storico/HEARTVISION_dataset_completo.csv"  # Legge Framingham
@@ -405,7 +405,7 @@ def carica_dataset():  # Importa e prepara entrambi i dataset
         tipo="storico"  # Controlla e pulisce il dataset storico
     )
 
-    
+
     # CARICAMENTO DEL CSV SCELTO DALL'UTENTE
 
     percorso_csv = input("\nInserisci il percorso del CSV da analizzare: ").strip()  # Legge il percorso inserito
@@ -438,6 +438,8 @@ def carica_dataset():  # Importa e prepara entrambi i dataset
     print("              DATASET QUESTIONARI")
     print("=" * 55)
     print(df_y.head())  # Mostra le prime cinque risposte
+
+    risultati = None  # Impedisce di mostrare risultati riferiti a un altro CSV
 
     print("\nHEARTVISION - Operazioni completate!")
     print("\nCaricamento completato.")
@@ -709,65 +711,50 @@ def esegui_confronto_modelli():  # Valuta KNN, Decision Tree e Random Forest
         ascending=False  # Mostra prima i valori più alti
     )
 
-    print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")
-    print(confronto.to_string(index=False))  # Mostra la tabella completa
-
-
-    # SELEZIONE DELLE CONFIGURAZIONI MIGLIORI
+    # SELEZIONE DELLE MIGLIORI CONFIGURAZIONI
 
     indici_migliori = (
         confronto
-        .groupby("algoritmo")["f1_score"]  # Raggruppa per algoritmo
-        .idxmax()  # Individua il migliore F1-score
-    )
+        .groupby("algoritmo")["f1_score"]
+        .idxmax()
+    )  # Trova il miglior F1-score per ciascun algoritmo
 
     migliori_modelli = confronto.loc[
         indici_migliori
-    ].reset_index(drop=True)  # Crea la tabella delle configurazioni migliori
+    ].reset_index(drop=True)  # Salva i parametri migliori
 
-    print("\nMIGLIORE CONFIGURAZIONE PER OGNI ALGORITMO:")
+    # CONFERMA DEL CONFRONTO
 
-    print(
-        migliori_modelli[
-            ["algoritmo", "configurazione"] + metriche
-        ].to_string(index=False)
-    )
+    print("\nConfronto dei modelli completato correttamente!")
+    print(f"Configurazioni analizzate: {len(confronto)}")
+    print("Premi 3 nel menu per visualizzare tutti i risultati.")
 
 
 # ADDESTRAMENTO DEFINITIVO E PREVISIONI
 
-def esegui_previsioni():  # Addestra il modello selezionato
+def esegui_previsioni():  # Addestra automaticamente il modello con F1-score migliore
 
     if "confronto" not in globals():  # Verifica che il confronto sia stato eseguito
         print("Prima esegui il confronto dei modelli (opzione 2).")
         return
 
-    print("\nScegli il modello da utilizzare:")
-    print("1. KNN")
-    print("2. Decision Tree")
-    print("3. Random Forest")
+    # AGGIORNAMENTO DEL CSV DA ANALIZZARE
 
-    scelta = input("Seleziona (1-3): ").strip()  # Legge la scelta
+    global X_test  # Permette di aggiornare i questionari utilizzati
 
-    modelli = {  # Associa le opzioni agli algoritmi
-        "1": "KNN",
-        "2": "Decision Tree",
-        "3": "Random Forest"
-    }
+    X_test = df_y[colonne + ["bmi"]]  # Recupera sempre l'ultimo CSV caricato
 
-    modello_scelto = modelli.get(scelta)  # Recupera il modello selezionato
-
-    if modello_scelto is None:  # Controlla la scelta dell'utente
-        print("Scelta non valida.")
-        return
+    # SCELTA AUTOMATICA DEL MODELLO MIGLIORE
 
     global modello_finale, scaler_finale, risultati, previsioni, probabilita_evento
 
-    riga_scelta = migliori_modelli[
-        migliori_modelli["algoritmo"] == modello_scelto
-    ].iloc[0]  # Recupera i parametri migliori
+    indice_migliore = confronto["f1_score"].idxmax()  # Individua il punteggio F1 medio più alto
+    riga_scelta = confronto.loc[indice_migliore]  # Recupera i parametri della configurazione migliore
+    modello_scelto = riga_scelta["algoritmo"]  # Seleziona automaticamente KNN, Decision Tree o Random Forest
 
-    print("\nMODELLO SELEZIONATO:", modello_scelto)
+    print("\nMODELLO SCELTO AUTOMATICAMENTE:", modello_scelto)
+    print("CRITERIO: F1-score medio nella cross-validation")
+    print("F1-SCORE MEDIO:", riga_scelta["f1_score"])
     print("CONFIGURAZIONE:", riga_scelta["configurazione"])
 
 
@@ -862,81 +849,13 @@ def esegui_previsioni():  # Addestra il modello selezionato
     print(risultati)  # Visualizza le previsioni
 
 
-# GRAFICO DEL CONFRONTO FINALE
-
-if "confronto" not in globals() or "df_X" not in globals():
-    print("Prima carica i dataset ed esegui il confronto dei modelli.")
-
-global migliori_modelli  # Fa riferimento alla tabella dei migliori modelli
-
-if "migliori_modelli" in globals():  # Verifica la disponibilità del confronto
-
-    plt.figure(figsize=(10, 6))  # Crea una nuova figura
-
-    posizioni = np.arange(len(migliori_modelli))  # Calcola le posizioni delle barre
-    larghezza = 0.35  # Imposta la larghezza delle barre
-
-    plt.bar(
-        posizioni - larghezza / 2,
-        migliori_modelli["f1_score"],
-        larghezza,
-        label="F1 Score"  # Rappresenta l'F1-score
-    )
-
-    plt.bar(
-        posizioni + larghezza / 2,
-        migliori_modelli["recall"],
-        larghezza,
-        label="Recall"  # Rappresenta il recall
-    )
-
-    plt.title("Confronto finale dei migliori algoritmi")
-    plt.xlabel("Algoritmo")
-    plt.ylabel("Punteggio medio")
-
-    plt.xticks(posizioni, migliori_modelli["algoritmo"])  # Mostra i nomi degli algoritmi
-
-    plt.ylim(0, 1)  # Imposta i limiti verticali
-    plt.grid(axis="y")  # Attiva la griglia orizzontale
-    plt.legend()  # Mostra la legenda
-    plt.tight_layout()  # Ottimizza la disposizione
-    plt.show()  # Visualizza il grafico
-
-
-# CARICAMENTO DI SUPPORTO PER I GRAFICI
-
-target = "evento_coronarico_10_anni"  # Mantiene il nome della variabile target
-
-try:
-    df_X  # Controlla se il dataset storico è disponibile
-
-except NameError:
-
-    df_X = pd.read_csv(
-        "Dataset_storico/HEARTVISION_dataset_completo.csv"
-    )  # Carica il dataset se non è già presente
-
-    if "bmi" not in df_X.columns:  # Verifica se il BMI è già calcolato
-
-        df_X["bmi"] = (
-            df_X["peso_kg"] / (df_X["altezza_cm"] / 100) ** 2
-        ).round(2)  # Calcola il BMI
-
-
-# FUNZIONE PER FORMATTARE LA PROFONDITÀ
-
-def formatta_profondita(valore):  # Converte le profondità in etichette
-
-    if pd.isna(valore):  # Verifica se la profondità è illimitata
-        return "Illimitata"
-
-    return str(int(valore))  # Converte la profondità numerica in testo
-
-
 # VISUALIZZAZIONE DEI GRAFICI
 
-def mostra_grafici():  # Visualizza i grafici del progetto
+def mostra_grafici():  # Visualizza il grafico fucsia dei fattori di rischio
 
+    if "df_X" not in globals():  # Verifica che lo storico sia stato caricato
+        print("Prima carica i dataset (opzione 1).")
+        return
 
     # GRAFICO DEI FATTORI DI RISCHIO
 
@@ -1009,157 +928,17 @@ def mostra_grafici():  # Visualizza i grafici del progetto
     plt.show()
 
 
-    # GRAFICO DEL CONFRONTO DEI MODELLI
-
-    migliori_per_algoritmo = (
-        confronto.loc[
-            confronto.groupby("algoritmo")["f1_score"].idxmax()
-        ]
-        .copy()
-        .reset_index(drop=True)
-    )  # Seleziona la migliore configurazione di ogni algoritmo
-
-    plt.figure(figsize=(9, 5))  # Crea una nuova figura
-
-    x = np.arange(len(migliori_per_algoritmo))  # Calcola le posizioni delle barre
-    width = 0.35  # Imposta la larghezza delle barre
-
-    plt.bar(
-        x - width / 2,
-        migliori_per_algoritmo["f1_score"],
-        width,
-        label="F1 Score",
-        color="#4B0082",
-        alpha=0.85
-    )
-
-    plt.bar(
-        x + width / 2,
-        migliori_per_algoritmo["recall"],
-        width,
-        label="Recall",
-        color="#6A5ACD",
-        alpha=0.85
-    )
-
-    plt.title(
-        "HEARTVISION - Confronto Metriche: Perché il Decision Tree eccelle",
-        fontsize=14,
-        fontweight="bold",
-        pad=15
-    )
-
-    plt.xlabel("Algoritmo di Machine Learning", fontsize=12, labelpad=10)
-    plt.ylabel("Punteggio medio (Cross-Validation)", fontsize=12)
-
-    plt.xticks(
-        x,
-        migliori_per_algoritmo["algoritmo"],
-        fontweight="bold",
-        rotation=0
-    )
-
-    plt.ylim(0, 1.1)
-    plt.legend(loc="upper right")
-    plt.grid(axis="y", linestyle="--", alpha=0.7)
-
-
-    # ANNOTAZIONE DEL DECISION TREE
-
-    dt_idx = migliori_per_algoritmo[
-        migliori_per_algoritmo["algoritmo"] == "Decision Tree"
-    ].index[0]  # Individua la posizione del Decision Tree
-
-    dt_f1 = migliori_per_algoritmo.loc[
-        dt_idx, "f1_score"
-    ]  # Recupera l'F1-score del Decision Tree
-
-    plt.annotate(
-        "Miglior equilibrio\npredittivo",
-        xy=(dt_idx - width / 2, dt_f1),
-        xytext=(dt_idx, dt_f1 + 0.1),
-        ha="center",
-        arrowprops=dict(
-            facecolor="black",
-            shrink=0.05,
-            width=1,
-            headwidth=6
-        ),
-        fontweight="bold",
-        color="darkgreen"
-    )  # Aggiunge una nota sul grafico
-
-    plt.tight_layout()
-    plt.show()
-
-
-    # GRAFICO DELLE PROFONDITÀ DEL DECISION TREE
-
-    decision_grafico = confronto[
-        confronto["algoritmo"] == "Decision Tree"
-    ].copy()  # Seleziona le configurazioni del Decision Tree
-
-    decision_grafico["profondita"] = decision_grafico[
-        "max_depth"
-    ].apply(
-        formatta_profondita  # Utilizza la funzione normale definita sopra
-    )
-
-    tabella_decision = decision_grafico.pivot(
-        index="profondita",
-        columns="criterio",
-        values="f1_score"
-    )  # Organizza l'F1-score per criterio e profondità
-
-    indici_ordinati = [
-        p for p in ["3", "5", "10", "Illimitata"]
-        if p in tabella_decision.index
-    ]  # Definisce l'ordine delle profondità
-
-    tabella_decision = tabella_decision.reindex(
-        indici_ordinati
-    )  # Riordina le righe della tabella
-
-    plt.figure(figsize=(10, 6))  # Crea una nuova figura
-
-    for criterio in tabella_decision.columns:  # Disegna una curva per criterio
-
-        plt.plot(
-            tabella_decision.index,
-            tabella_decision[criterio],
-            marker="o",
-            linewidth=2.5,
-            markersize=8,
-            label=f"Criterio: {criterio}"
-        )
-
-    plt.title(
-        "HEARTVISION - Decision Tree: Impatto di Profondità e Criteri sul F1 Score",
-        fontsize=14,
-        fontweight="bold",
-        pad=15
-    )
-
-    plt.xlabel("Profondità Massima dell'Albero", fontsize=12, labelpad=10)
-    plt.ylabel("F1 Score Medio", fontsize=12)
-    plt.ylim(0, 1.1)
-    plt.grid(True, linestyle="--", alpha=0.7)
-    plt.legend(title="Parametro di Split", fontsize=11)
-    plt.xticks(fontweight="bold")
-    plt.tight_layout()
-    plt.show()
-
-
 # VISUALIZZAZIONE DEI RISULTATI
 
-def mostra_risultati():  # Mostra la tabella delle previsioni
+def mostra_risultati():  # Mostra la tabella e il grafico delle previsioni
 
-    if "risultati" not in globals():  # Verifica che siano state effettuate previsioni
+    if "risultati" not in globals() or risultati is None or risultati.empty:  # Verifica le previsioni correnti
         print("Prima esegui le previsioni (opzione 4).")
         return
 
     print("\nRISULTATI HEARTVISION:")
     print(risultati.to_string(index=False))  # Mostra tutti i partecipanti
+    mostra_grafico_questionari()  # Visualizza le probabilità dell'ultimo CSV
 
 
 # GRAFICO DELLE PREVISIONI SUI QUESTIONARI
@@ -1242,9 +1021,9 @@ def menu_principale():  # Gestisce la navigazione del programma
         print("1. Caricamento e pulizia dei dataset")
         print("2. Confronto KNN, Decision Tree e Random Forest")
         print("3. Visualizzazione dei risultati del confronto")
-        print("4. Addestramento modello e previsione questionari")
-        print("5. Visualizzazione grafici")
-        print("6. Mostra risultati delle previsioni")
+        print("4. Addestramento automatico e previsione questionari")
+        print("5. Grafico dei fattori di rischio")
+        print("6. Risultati e grafico delle probabilità")
         print("0. Esci")
 
         scelta = input("\nSeleziona un'opzione: ").strip()  # Legge l'opzione selezionata
@@ -1281,12 +1060,11 @@ def menu_principale():  # Gestisce la navigazione del programma
             elif scelta == "4":  # Addestra il modello ed effettua le previsioni
                 esegui_previsioni()
 
-            elif scelta == "5":  # Visualizza i grafici
-                mostra_grafici() # Mostra grafici già esistenti 
-                mostra_grafico_questionari() # Mostra i grafici relativi all'ultimo csv studiato 
+            elif scelta == "5":  # Visualizza i fattori di rischio
+                mostra_grafici()  # Mostra soltanto il grafico fucsia
 
-            elif scelta == "6":  # Mostra le previsioni
-                mostra_risultati()
+            elif scelta == "6":  # Mostra le previsioni e il relativo grafico
+                mostra_risultati()  # Mostra la tabella e il grafico delle probabilità
 
             elif scelta == "0":  # Termina il programma
                 print("Chiusura di HEARTVISION. Arrivederci!")
