@@ -12,9 +12,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                             f1_score, roc_auc_score)
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import StratifiedKFold, train_test_split, cross_val_predict
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
+                             average_precision_score, brier_score_loss, fbeta_score)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 HV = os.path.join(BASE, "heart_vision.py")
@@ -24,13 +25,14 @@ _ns = {}
 _tree = ast.parse(open(HV, encoding="utf-8").read())
 _keep = [n for n in _tree.body if
          isinstance(n, (ast.Import, ast.ImportFrom)) or
-         (isinstance(n, ast.FunctionDef) and n.name in ("converti_questionario", "controllo_csv")) or
+         (isinstance(n, ast.FunctionDef) and n.name in ("converti_questionario", "controllo_csv", "crea_modello")) or
          (isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") in ("colonne", "target"))]
 exec(compile(ast.Module(body=_keep, type_ignores=[]), HV, "exec"), _ns)
 colonne, target = _ns["colonne"], _ns["target"]
 converti_questionario, controllo_csv = _ns["converti_questionario"], _ns["controllo_csv"]
+crea_modello = _ns["crea_modello"]  # costruzione dei modelli identica al programma originale
 
-metriche = ["accuracy", "precision", "recall", "f1_score", "roc_auc"]
+metriche = ["accuracy", "precision", "recall", "f1_score", "roc_auc", "pr_auc", "brier"]
 S = {}  # stato dell'applicazione (le variabili globali dello script)
 app = Flask(__name__)
 
@@ -68,6 +70,8 @@ def stato():
 @app.post("/api/carica")
 @api
 def carica():
+    if P["stato"] == "running":
+        raise ValueError("Attendi la fine del confronto in corso.")
     f1, f2 = request.files.get("storico"), request.files.get("questionari")
     if not (f2 and f2.filename):
         raise ValueError("Devi inserire un file CSV con le risposte del questionario!")
@@ -78,10 +82,8 @@ def carica():
     emails = raw[col].astype("string").str.strip().str.lower().fillna("").tolist() if col is not None else None
     dy = converti_questionario(raw)
     dy = controllo_csv(dy, tipo="questionario", riferimento=dx)
-    S.pop("risultati", None); S.pop("modello", None)  # niente risultati di un altro CSV
-    if f1 and f1.filename:  # nuovo storico: il vecchio confronto non è più valido
-        for k in ("confronto", "migliori"):
-            S.pop(k, None)
+    for k in ("risultati", "modello", "confronto", "migliori", "split", "Xtr", "ytr"):
+        S.pop(k, None)  # impedisce di riusare una selezione precedente
     S.update(X=dx, Y=dy, email=emails)
     return jsonify(storico=dict(righe=len(dx), eventi=round(float(dx[target].mean() * 100), 1),
                                 head=rec(dx.head())),
@@ -89,7 +91,7 @@ def carica():
 
 
 # 2-3. Confronto KNN / Decision Tree / Random Forest
-P = dict(stato="idle", fatto=0, totale=115, errore=None)  # avanzamento del confronto
+P = dict(stato="idle", fatto=0, totale=35, errore=None)  # avanzamento del confronto
 
 
 @app.post("/api/confronto")
@@ -121,54 +123,48 @@ def _job():
 def _calcola():
     cols = colonne + ["bmi"]
     Xtr, ytr = S["X"][cols], S["X"][target]
-    S["Xtr"], S["ytr"] = Xtr, ytr
+    # 20% dello storico escluso dalla scelta dei modelli (verifica indipendente)
+    Xs, Xv, ys, yv = train_test_split(Xtr, ytr, test_size=0.20, stratify=ytr, random_state=42)
+    S["Xtr"], S["ytr"], S["split"] = Xtr, ytr, (Xs, Xv, ys, yv)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    cfgs = []  # (algoritmo, configurazione, parametri, scaling, costruttore)
-    for k in [3, 5, 7, 9, 11, 15]:
-        cfgs.append(("KNN", f"K={k}", dict(k=k), True, lambda k=k: KNeighborsClassifier(n_neighbors=k)))
+    cfgs = []
+    for k in [3, 5, 7, 9, 11, 15, 21]:
+        cfgs.append(dict(algoritmo="KNN", configurazione=f"K={k}", k=k, criterio=None, max_depth=None,
+                         n_estimators=None, peso_classi="nessuno"))
     for c in ["gini", "entropy"]:
         for d in [3, 5, 10, None]:
-            cfgs.append(("Decision Tree", f"{c} - profondità {d}", dict(criterio=c, max_depth=d), False,
-                         lambda c=c, d=d: DecisionTreeClassifier(criterion=c, max_depth=d,
-                                                                 min_samples_leaf=20, random_state=42)))
-    for n in [100, 200, 300]:
+            for w in ["nessuno", "balanced"]:
+                cfgs.append(dict(algoritmo="Decision Tree", configurazione=f"{c} - profondità {d} - {w}", k=None,
+                                 criterio=c, max_depth=d, n_estimators=None, peso_classi=w))
+    for n in [100, 200]:
         for d in [5, 10, None]:
-            cfgs.append(("Random Forest", f"{n} alberi - profondità {d}", dict(n_estimators=n, max_depth=d),
-                         False, lambda n=n, d=d: RandomForestClassifier(n_estimators=n, max_depth=d,
-                                                                        random_state=42, n_jobs=-1)))
-    P["totale"] = len(cfgs) * 5  # configurazioni x 5 fold
+            for w in ["nessuno", "balanced"]:
+                cfgs.append(dict(algoritmo="Random Forest", configurazione=f"{n} alberi - profondità {d} - {w}",
+                                 k=None, criterio=None, max_depth=d, n_estimators=n, peso_classi=w))
+    P["totale"] = len(cfgs)
     righe = []
-    for algo, nome, par, scala, mk in cfgs:
-        for i_tr, i_va in cv.split(Xtr, ytr):
-            a, b = Xtr.iloc[i_tr], Xtr.iloc[i_va]
-            if scala:
-                sc = StandardScaler()
-                a, b = sc.fit_transform(a), sc.transform(b)
-            mod = mk().fit(a, ytr.iloc[i_tr])
-            yv, p = ytr.iloc[i_va], mod.predict(b)
-            pr = mod.predict_proba(b)[:, list(mod.classes_).index(1)]
-            r = dict(algoritmo=algo, configurazione=nome, k=None, criterio=None, max_depth=None,
-                     n_estimators=None)
-            r.update(par)
-            r.update(accuracy=accuracy_score(yv, p), precision=precision_score(yv, p, zero_division=0),
-                     recall=recall_score(yv, p, zero_division=0), f1_score=f1_score(yv, p, zero_division=0),
-                     roc_auc=roc_auc_score(yv, pr))
-            righe.append(r)
-            P["fatto"] += 1
+    for cfg in cfgs:
+        po = cross_val_predict(crea_modello(cfg), Xs, ys, cv=cv, method="predict_proba")[:, 1]
+        co = (po >= 0.50).astype(int)
+        r = dict(cfg)
+        r.update(accuracy=accuracy_score(ys, co), precision=precision_score(ys, co, zero_division=0),
+                 recall=recall_score(ys, co, zero_division=0), f1_score=f1_score(ys, co, zero_division=0),
+                 roc_auc=roc_auc_score(ys, po), pr_auc=average_precision_score(ys, po),
+                 brier=brier_score_loss(ys, po))
+        righe.append(r)
+        P["fatto"] += 1
 
-    dfr = pd.DataFrame(righe)
-    conf = dfr.groupby(["algoritmo", "configurazione"])[metriche].mean().reset_index()
-    par = dfr[["algoritmo", "configurazione", "k", "criterio", "max_depth", "n_estimators"]].drop_duplicates()
-    conf = conf.merge(par, on=["algoritmo", "configurazione"])
+    conf = pd.DataFrame(righe).sort_values(by=["pr_auc", "roc_auc", "brier"],
+                                           ascending=[False, False, True]).reset_index(drop=True)
+    migl = conf.loc[conf.groupby("algoritmo")["pr_auc"].idxmax()].reset_index(drop=True)
     conf[metriche] = conf[metriche].round(3)
-    conf = conf.sort_values(by="f1_score", ascending=False)
-    migl = conf.loc[conf.groupby("algoritmo")["f1_score"].idxmax()].reset_index(drop=True)
+    migl[metriche] = migl[metriche].round(3)
     S["confronto"], S["migliori"] = conf, migl
     S.pop("risultati", None); S.pop("modello", None)
 
 
-# 4. Modello migliore (F1 medio) e previsioni
+# 4. Modello scelto per PR-AUC, calibrazione, soglia, verifica indipendente e previsioni
 @app.post("/api/previsioni")
 @api
 def previsioni():
@@ -176,27 +172,36 @@ def previsioni():
         raise ValueError("Prima esegui il confronto dei modelli.")
     cols = colonne + ["bmi"]
     Xtr, ytr, Xte = S["Xtr"], S["ytr"], S["Y"][cols]
-    conf = S["confronto"]
-    riga = conf.loc[conf["f1_score"].idxmax()]
-    nome = riga["algoritmo"]
-    prof = None if pd.isna(riga["max_depth"]) else int(riga["max_depth"])
-    if nome == "KNN":
-        sc = StandardScaler()
-        Xtr, Xte = sc.fit_transform(Xtr), sc.transform(Xte)
-        mod = KNeighborsClassifier(n_neighbors=int(riga["k"]))
-    elif nome == "Decision Tree":
-        mod = DecisionTreeClassifier(criterion=riga["criterio"], max_depth=prof,
-                                     min_samples_leaf=20, random_state=42)
-    else:
-        mod = RandomForestClassifier(n_estimators=int(riga["n_estimators"]), max_depth=prof,
-                                     random_state=42, n_jobs=-1)
-    mod.fit(Xtr, ytr)
-    prev = mod.predict(Xte)
-    prob = mod.predict_proba(Xte)[:, list(mod.classes_).index(1)] * 100
+    Xs, Xv, ys, yv = S["split"]
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scelta = S["confronto"].iloc[0]  # migliore per PR-AUC
+    mk = lambda folds: CalibratedClassifierCV(estimator=crea_modello(scelta), method="sigmoid", cv=folds)
+
+    po = cross_val_predict(mk(3), Xs, ys, cv=cv, method="predict_proba")[:, 1]
+    soglia, bf, bp, br = 0.50, -1.0, 0.0, 0.0  # soglia scelta massimizzando l'F1 sullo sviluppo
+    for t in np.arange(0.10, 0.601, 0.01):
+        c = (po >= t).astype(int)
+        f = f1_score(ys, c, zero_division=0)
+        if f > bf:
+            bf, soglia = f, float(t)
+            bp, br = precision_score(ys, c, zero_division=0), recall_score(ys, c, zero_division=0)
+
+    pv = mk(3).fit(Xs, ys).predict_proba(Xv)[:, 1]  # verifica sul 20% mai usato
+    cvv = (pv >= soglia).astype(int)
+    ver = dict(precision=precision_score(yv, cvv, zero_division=0), recall=recall_score(yv, cvv, zero_division=0),
+               f2=fbeta_score(yv, cvv, beta=2, zero_division=0), roc_auc=roc_auc_score(yv, pv),
+               pr_auc=average_precision_score(yv, pv), brier=brier_score_loss(yv, pv))
+
+    finale = mk(5).fit(Xtr, ytr)  # addestramento definitivo su tutto lo storico
+    prob = finale.predict_proba(Xte)[:, 1] * 100
+    prev = ((prob / 100) >= soglia).astype(int)
     ris = pd.DataFrame({"utente": range(1, len(Xte) + 1), "previsione": prev,
                         "probabilita_evento_percentuale": prob.round(2)})
     S["risultati"] = ris
-    S["modello"] = dict(algoritmo=nome, configurazione=riga["configurazione"], f1_score=float(riga["f1_score"]))
+    S["modello"] = dict(algoritmo=scelta["algoritmo"], configurazione=scelta["configurazione"],
+                        pr_auc=float(scelta["pr_auc"]), soglia=round(soglia, 3),
+                        sviluppo=dict(f1=round(bf, 3), precision=round(bp, 3), recall=round(br, 3)),
+                        verifica={k: round(float(v), 3) for k, v in ver.items()})
     return jsonify(modello=S["modello"], risultati=rec(ris))
 
 
@@ -238,21 +243,18 @@ def partecipante():
         i = trovati[0]
     sogg, prev, df = dy.iloc[i], ris.iloc[i], S["X"]
     num = []
-    for c, nome in [("eta", "Età (anni)"), ("sigarette_giorno", "Sigarette/giorno"), ("bmi", "BMI"),
-                    ("frequenza_cardiaca", "Frequenza cardiaca"), ("sere_alcol_settimana", "Sere con alcol/settimana")]:
+    for c, nome in [("eta", "Età (anni)"), ("sigarette_giorno", "Sigarette/giorno"), ("peso_kg", "Peso (kg)"),
+                    ("altezza_cm", "Altezza (cm)"), ("bmi", "BMI"), ("frequenza_cardiaca", "Frequenza cardiaca"),
+                    ("sere_alcol_settimana", "Sere con alcol/settimana")]:
         v = float(sogg[c])
         st = pd.to_numeric(df[c], errors="coerce").dropna()
         lim = float(st.quantile(0.90))  # 90° percentile dello storico
         num.append(dict(nome=nome, valore=round(v, 2), limite=round(lim, 2),
                         rango=round(float((st <= v).mean() * 100), 1), elevato=bool(v > lim)))
-    ind = [dict(nome=n, presente=int(sogg[c])) for c, n in [
-        ("fumatore", "Fumatore"), ("farmaci_pressione", "Farmaci per pressione"), ("ictus_precedente", "Ictus precedente"),
-        ("ipertensione", "Ipertensione"), ("diabete", "Diabete"), ("colesterolo_alto", "Colesterolo alto"),
-        ("alcol", "Consumo di alcol"), ("sport", "Attività sportiva")]]
     return jsonify(id=int(prev["utente"]), email=q, classe=int(prev["previsione"]),
                    percentuale=float(prev["probabilita_evento_percentuale"]),
                    caratteristiche={c: round(float(sogg[c]), 2) for c in colonne + ["bmi"]},
-                   numeriche=num, indicatori=ind)
+                   numeriche=num)
 
 
 if __name__ == "__main__":

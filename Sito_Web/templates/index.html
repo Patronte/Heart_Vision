@@ -46,7 +46,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:7px 12px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
 th{position:sticky;top:0;background:var(--navy);color:#fff;font-weight:600}tbody tr:nth-child(even) td,tr:nth-child(even) td{background:var(--grid2)}
 .msg{margin:10px 0 0;color:var(--mu)}.err{color:var(--er);font-weight:600}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.cv{position:relative;height:340px}.k{font:800 34px Fraunces,serif;color:var(--ac)}
+.cv{position:relative;height:340px;background:#252538;border:6px solid #1E1E2F;border-radius:12px;padding:6px}.k{font:800 34px Fraunces,serif;color:var(--ac)}
 footer{max-width:1100px;margin:0 auto;padding:6px 24px 36px;color:var(--mu);font-size:13px;display:flex;gap:10px;align-items:center}
 footer::before{content:"";width:28px;height:2px;background:var(--ac);flex:none}
 @media(max-width:720px){.chips{margin-left:0;justify-content:flex-start}nav{padding:0 12px}nav button{font-size:12px;padding:11px 4px;flex-direction:column;gap:4px}}
@@ -111,13 +111,13 @@ input[type=email],input[type=text]{font:inherit;padding:9px 12px;border-radius:8
 </section>
 <section id="t2">
   <div class="card"><h2>KNN, Decision Tree e Random Forest</h2>
-    <p class="msg">Cross-validation stratificata a 5 fold su tutte le configurazioni: può richiedere qualche minuto.</p>
+    <p class="msg">35 configurazioni con cross-validation stratificata a 5 fold sull'80% dello storico: il 20% resta escluso come verifica indipendente. Selezione per PR-AUC; può richiedere qualche minuto.</p>
     <button class="go" id="b2">Esegui il confronto</button><div class="msg" id="m2"></div></div>
   <div id="o2"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Nessun confronto ancora: avvia il calcolo per vedere le metriche dei modelli.</div></div>
 </section>
 <section id="t3">
   <div class="card"><h2>Addestramento automatico e previsioni</h2>
-    <p class="msg">Viene addestrato il modello con l'F1-score medio più alto e applicato a ogni partecipante del questionario.</p>
+    <p class="msg">Viene scelta la configurazione con la PR-AUC più alta, calibrata (Platt) con soglia ottimizzata sull'F1; poi viene verificata sul 20% mai usato e applicata al questionario.</p>
     <button class="go" id="b3">Addestra e prevedi</button><div class="msg" id="m3"></div></div>
   <div id="o3"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Le previsioni compariranno qui dopo l’addestramento del modello migliore.</div></div>
 </section>
@@ -134,10 +134,10 @@ input[type=email],input[type=text]{font:inherit;padding:9px 12px;border-radius:8
 </main>
 <footer>Strumento didattico basato su dati storici: non è una diagnosi e non sostituisce il parere del medico.</footer>
 <script>
-const $ = s => document.querySelector(s), charts = {}, M = ["accuracy", "precision", "recall", "f1_score", "roc_auc"];
-const css = v => getComputedStyle(document.body).getPropertyValue(v).trim(), TX = css("--tx");
+const $ = s => document.querySelector(s), charts = {}, M = ["accuracy", "precision", "recall", "f1_score", "roc_auc", "pr_auc", "brier"];
+const css = v => getComputedStyle(document.body).getPropertyValue(v).trim(), TX = "#f4f4fa";
 Chart.defaults.font.family = "'Instrument Sans',sans-serif";
-Chart.defaults.color = css("--mu"); Chart.defaults.borderColor = "rgba(150,150,170,.25)";
+Chart.defaults.color = "#d9dbe8"; Chart.defaults.borderColor = "rgba(255,255,255,.12)";
 async function api(p, o) { const r = await fetch(p, o), j = await r.json(); if (!r.ok) throw new Error(j.errore); return j; }
 function tab(rows, fmt = {}) {
   if (!rows || !rows.length) return "<p class='msg'>Nessun dato.</p>";
@@ -159,7 +159,7 @@ const lbl = {id: "lbl", afterDatasetsDraw(c, _, o) {
     if (h) { const in_ = b.x > a.left + a.width * .88; ctx.textAlign = in_ ? "right" : "left"; ctx.fillStyle = in_ ? "#fff" : TX; ctx.fillText(o.text(i), in_ ? b.x - 6 : b.x + 6, b.y); }
     else { ctx.textAlign = "center"; ctx.fillStyle = TX; ctx.fillText(o.text(i), b.x, b.y - 10); }
   });
-  if (o.ref != null) { const x = c.scales.x.getPixelForValue(o.ref); ctx.setLineDash([6, 5]); ctx.strokeStyle = "#888"; ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); }
+  if (o.ref != null) { const x = c.scales.x.getPixelForValue(o.ref); ctx.setLineDash([6, 5]); ctx.strokeStyle = "#FFD166"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); }
   ctx.restore();
 }};
 function chart(id, cfg) {
@@ -170,12 +170,12 @@ function chart(id, cfg) {
 const heart = `<svg viewBox="0 0 64 64"><path d="M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z" fill="#c8102e"/><path d="M8 33h15l4-9 7 19 5-10h17" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const showConf = (c, m) => {
-  $("#o2").innerHTML = `<div class="kpis">${m.map(x => kpi(x.f1_score.toFixed(3), `${x.algoritmo} · F1 medio (${x.configurazione})`)).join("")}</div>`
+  $("#o2").innerHTML = `<div class="kpis">${m.map(x => kpi(x.pr_auc.toFixed(3), `${x.algoritmo} · PR-AUC (${x.configurazione})`)).join("")}</div>`
     + card("Migliore configurazione per algoritmo", tab(m)) + card(`Confronto completo (${c.length} configurazioni)`, tab(c));
 };
-const BANDE = [["0% - 25%", "#2C5E8A", "#fff"], ["25% - 50%", "#6BAED6", "#102a43"], ["50% - 75%", "#C93B52", "#fff"], ["75% - 100%", "#F28C9E", "#4a0f1a"]];
+const BANDE = [["0% - 25%", "#1D3557", "#fff"], ["25% - 50%", "#457B9D", "#fff"], ["50% - 75%", "#D90429", "#fff"], ["75% - 100%", "#EF476F", "#fff"]];
 const FNOME = ["Rischio molto basso", "Rischio medio-basso", "Rischio moderato", "Rischio elevato"];
-const fascia = x => x.previsione == 1 ? (x.probabilita_evento_percentuale <= 75 ? 2 : 3) : (x.probabilita_evento_percentuale <= 25 ? 0 : 1);
+const fascia = x => { const p = x.probabilita_evento_percentuale; return p <= 25 ? 0 : p <= 50 ? 1 : p <= 75 ? 2 : 3; };
 const esc = t => String(t).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 function setEmails(l) { const d = $("#el"); d.innerHTML = ""; [...new Set(l || [])].filter(Boolean).forEach(e => { const o = document.createElement("option"); o.value = e; d.append(o); }); }
 const ring = {id: "ring", afterDatasetsDraw(c, _, o) {
@@ -192,11 +192,12 @@ const ring = {id: "ring", afterDatasetsDraw(c, _, o) {
 const showRis = (mod, r) => {
   const n = r.length, pos = r.filter(x => x.previsione == 1).length, med = r.reduce((a, x) => a + x.probabilita_evento_percentuale, 0) / n;
   const ext = BANDE.map((b, k) => ({n: r.filter(x => fascia(x) == k).length, col: b[1], tc: b[2], nome: "Fascia " + b[0]})).filter(x => x.n > 0);
-  const int = [{n: n - pos, col: "#4682B4", tc: "#fff", nome: "Classe 0 - Basso rischio"}, {n: pos, col: "#E85D75", tc: "#fff", nome: "Classe 1 - Rischio evento"}].filter(x => x.n > 0);
-  const ds = L => ({data: L.map(x => x.n), backgroundColor: L.map(x => x.col), tc: L.map(x => x.tc), lab: L.map(x => x.nome), borderColor: css("--card"), borderWidth: 3});
-  $("#o3").innerHTML = card("Modello scelto automaticamente", `<div class="model">${heart}<div><strong>${mod.algoritmo}</strong><div class="msg">${mod.configurazione} · F1-score medio ${mod.f1_score}</div></div></div>`)
-    + `<div class="kpis">${kpi(n, "partecipanti analizzati")}${kpi(pos, "previsti in classe 1")}${kpi(med.toFixed(1) + "%", "probabilità media")}</div>`
-    + card("Distribuzione per classe e fascia di rischio", `<div class="cv" style="height:430px"><canvas id="gp"></canvas></div>
+  const int = [{n: n - pos, col: "#3A86FF", tc: "#fff", nome: "Classe 0 - Non segnalato"}, {n: pos, col: "#E85D75", tc: "#fff", nome: "Classe 1 - Segnalato"}].filter(x => x.n > 0);
+  const ds = L => ({data: L.map(x => x.n), backgroundColor: L.map(x => x.col), tc: L.map(x => x.tc), lab: L.map(x => x.nome), borderColor: "#1E1E2F", borderWidth: 3});
+  $("#o3").innerHTML = card("Modello scelto automaticamente", `<div class="model">${heart}<div><strong>${mod.algoritmo}</strong><div class="msg">${mod.configurazione} · PR-AUC ${mod.pr_auc} · soglia di classificazione ${mod.soglia.toFixed(2)}</div></div></div>`)
+    + card("Verifica indipendente sul 20% dello storico", `<div class="kpis">${kpi(mod.verifica.precision, "precision")}${kpi(mod.verifica.recall, "recall")}${kpi(mod.verifica.f2, "F2-score")}${kpi(mod.verifica.roc_auc, "ROC-AUC")}${kpi(mod.verifica.pr_auc, "PR-AUC")}${kpi(mod.verifica.brier, "Brier score")}</div><p class="msg">Soglia scelta sui dati di sviluppo (F1 ${mod.sviluppo.f1}, precision ${mod.sviluppo.precision}, recall ${mod.sviluppo.recall}). Le percentuali sono stime del modello, non diagnosi cliniche.</p>`)
+    + `<div class="kpis">${kpi(n, "partecipanti analizzati")}${kpi(pos, "segnalati (classe 1)")}${kpi(med.toFixed(1) + "%", "probabilità media")}</div>`
+    + card("Distribuzione per classe e fascia di rischio", `<div class="cv" style="height:440px"><canvas id="gp"></canvas></div>
       <div class="leg">${[...int, ...ext].map(x => `<span><i style="background:${x.col}"></i>${x.nome} (${x.n} utenti)</span>`).join("")}</div>
       <p class="msg">Anello interno: classi previste. Anello esterno: fasce di probabilità della classe 1.</p>`)
     + card("Risultati HeartVision", tab(r.map(x => ({...x, fascia: fascia(x)})), {previsione: v => `<span class="b b${v}">Classe ${v}</span>`, fascia: v => `<span class="b f${v}">${FNOME[v]}</span>`}));
@@ -214,12 +215,12 @@ $("#b1").onclick = () => run("#b1", "#m1", async () => {
     + card("Dataset Framingham (pulito)", tab(j.storico.head)) + card("Questionari (convertiti e puliti)", tab(j.questionari.head));
 });
 const FR = [
-  ["Allineo le scale: ogni dato parla la stessa lingua…", "Il KNN interroga i vicini più simili a ogni paziente…", "Provo K diversi per trovare il giusto numero di vicini…", "Divido i pazienti in cinque gruppi equilibrati…"],
-  ["Gli alberi imparano a farsi le domande giuste…", "Gini contro entropia: una sfida di eleganza…", "Niente foglie troppo piccole: l'albero non deve imparare a memoria…", "Pressione, colesterolo, fumo: chi pesa di più sul rischio?…"],
-  ["Una foresta intera sta votando, albero dopo albero…", "Il bosco decide a maggioranza: più alberi, più prudenza…", "F1, recall e ROC-AUC: la bilancia della precisione…", "Ultimi battiti: scelgo la configurazione vincente…"]];
+  ["Allineo le scale: ogni dato parla la stessa lingua…", "Il KNN interroga i vicini più simili a ogni paziente…", "Provo K diversi per trovare il giusto numero di vicini…", "Metto da parte il 20% dei pazienti per una verifica indipendente…"],
+  ["Gli alberi imparano a farsi le domande giuste…", "Gini contro entropia: una sfida di eleganza…", "Niente foglie troppo piccole: l'albero non deve imparare a memoria…", "Bilancio le classi: i casi rari meritano più attenzione…"],
+  ["Una foresta intera sta votando, albero dopo albero…", "Il bosco decide a maggioranza: più alberi, più prudenza…", "PR-AUC e Brier: chi distingue meglio i casi a rischio?…", "Ultimi battiti: scelgo la configurazione vincente…"]];
 const LH = `<svg class="lheart run" id="lh" viewBox="0 0 64 64"><path d="M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z" fill="#c8102e"/><path class="tr" id="tr" pathLength="1" d="M8 33h15l4-9 7 19 5-10h17"/></svg>`;
 let tm = null, fi = 0, pc = 0;
-const frase = () => { const g = FR[pc < 26 ? 0 : pc < 61 ? 1 : 2]; $("#ph").textContent = g[fi++ % g.length]; };
+const frase = () => { const g = FR[pc < 20 ? 0 : pc < 66 ? 1 : 2]; $("#ph").textContent = g[fi++ % g.length]; };
 function loaderStart() {
   pc = 0; fi = 0;
   $("#o2").innerHTML = `<div class="card load"><div class="pct" id="pct">0%</div>${LH}<div class="bar"><i id="bf"></i></div><div class="phrase" id="ph"></div></div>`;
@@ -256,7 +257,7 @@ $("#b3").onclick = () => run("#b3", "#m3", async () => { const j = await api("/a
 async function fattori() {
   try {
     const j = await api("/api/fattori"); $("#n1").textContent = "";
-    chart("g1", {type: "bar", data: {labels: j.map(x => x.fattore), datasets: [{data: j.map(x => x.rischio), backgroundColor: "rgba(121,8,150,.85)", borderRadius: 4}]},
+    chart("g1", {type: "bar", data: {labels: j.map(x => x.fattore), datasets: [{data: j.map(x => x.rischio), backgroundColor: "rgba(232,93,117,.9)", borderRadius: 4}]},
       options: {scales: {y: {min: 0, max: Math.max(...j.map(x => x.rischio)) * 1.2, title: {display: true, text: "Percentuale di evento coronarico (%)"}}},
         plugins: {legend: {display: false}, lbl: {text: i => j[i].rischio.toFixed(1) + "%"}}}});
   } catch (e) { $("#n1").className = "msg err"; $("#n1").textContent = e.message; }
@@ -274,13 +275,13 @@ api("/api/stato").then(s => {
 function showPaz(j) {
   const el = j.numeriche.filter(x => x.elevato), f = fascia({previsione: j.classe, probabilita_evento_percentuale: j.percentuale});
   $("#o5").innerHTML = card(`Utente ${j.id}`, `<div class="model">${heart}<div><strong>${esc(j.email)}</strong><div class="msg"><span class="b b${j.classe}">Classe ${j.classe}</span> <span class="b f${f}">${FNOME[f]}</span></div></div></div>`)
-    + `<div class="kpis">${kpi(j.percentuale.toFixed(2) + "%", "probabilità stimata della classe 1")}${kpi(el.length + " / " + j.numeriche.length, "variabili sopra il 90° percentile")}${kpi(j.indicatori.filter(x => x.presente).length + " / " + j.indicatori.length, "indicatori dichiarati presenti")}</div>`
-    + card("Confronto con lo storico Framingham", `<div class="cv" style="height:300px"><canvas id="gn"></canvas></div>
-      <div class="leg"><span><i style="background:#FF27BE"></i>Sopra il 90° percentile</span><span><i style="background:#4682B4"></i>Entro il 90° percentile</span><span>Linea tratteggiata: 90° percentile</span></div>`
+    + `<div class="kpis">${kpi(j.percentuale.toFixed(2) + "%", "probabilità stimata della classe 1")}${kpi(el.length + " / " + j.numeriche.length, "variabili sopra il 90° percentile")}</div>`
+    + card(`Confronto completo delle feature - Utente ID ${j.id}`, `<div class="cv" style="height:400px"><canvas id="gn"></canvas></div>
+      <div class="leg"><span><i style="background:#E85D75"></i>Sopra il 90° percentile</span><span><i style="background:#3A86FF"></i>Entro il 90° percentile</span><span><i style="background:#FFD166"></i>Soglia di riferimento (Dataset Framingham)</span></div>`
       + `<p class="msg">${el.length ? "Valori elevati: " + el.map(x => x.nome).join(", ") + "." : "Nessuna delle caratteristiche selezionate supera il 90° percentile."}</p>`
       + tab(j.numeriche.map(x => ({variabile: x.nome, valore: x.valore, "90° percentile storico": x.limite, stato: x.elevato ? "SUPERIORE AL 90° PERCENTILE" : "Non supera il 90° percentile"}))))
     + card("Tutte le caratteristiche", tab(Object.entries(j.caratteristiche).map(([c, v]) => ({caratteristica: c, valore: v}))));
-  chart("gn", {type: "bar", data: {labels: j.numeriche.map(x => x.nome), datasets: [{data: j.numeriche.map(x => x.rango), backgroundColor: j.numeriche.map(x => x.elevato ? "#FF27BE" : "#4682B4"), borderRadius: 4}]},
+  chart("gn", {type: "bar", data: {labels: j.numeriche.map(x => x.nome), datasets: [{data: j.numeriche.map(x => x.rango), backgroundColor: j.numeriche.map(x => x.elevato ? "#E85D75" : "#3A86FF"), borderRadius: 4}]},
     options: {indexAxis: "y", scales: {x: {min: 0, max: 115, title: {display: true, text: "Posizione percentile rispetto a Framingham"}}},
       plugins: {legend: {display: false}, lbl: {ref: 90, text: i => "Valore: " + j.numeriche[i].valore}}}});
 }
