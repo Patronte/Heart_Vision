@@ -8,9 +8,12 @@ from sklearn.neighbors import KNeighborsClassifier  # Importa il classificatore 
 from sklearn.preprocessing import StandardScaler  # Importa lo standardizzatore
 from sklearn.tree import DecisionTreeClassifier  # Importa l'albero decisionale
 from sklearn.ensemble import RandomForestClassifier  # Importa la Random Forest
-from sklearn.model_selection import StratifiedKFold  # Importa la cross-validation stratificata
+from sklearn.calibration import CalibratedClassifierCV  # Calibra le probabilità
+from sklearn.pipeline import make_pipeline  # Gestisce lo scaler all’interno di KNN
+from sklearn.model_selection import StratifiedKFold, train_test_split, cross_val_predict  # Valida i modelli
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
+    average_precision_score, brier_score_loss, fbeta_score
 )
 
 import matplotlib.pyplot as plt  # Gestisce i grafici
@@ -394,10 +397,11 @@ def controllo_csv(df, tipo="storico", riferimento=None):
 
 def carica_dataset():  # Importa e prepara entrambi i dataset
 
-    global df_X, df_y, risultati, email_questionari  # Condivide i dataset e gli identificativi
+    global df_X, df_y, risultati, email_questionari, confronto  # Condivide dati e confronto
 
     risultati = None  # Azzera le previsioni del CSV precedente
     email_questionari = None  # Azzera le email del CSV precedente
+    confronto = None  # Impedisce di riusare una selezione precedente
 
     df_X = pd.read_csv(
         "Dataset_storico/HEARTVISION_dataset_completo.csv"  # Legge Framingham
@@ -736,411 +740,269 @@ def analizza_partecipante():  # Analizza un partecipante tramite la sua email
     figura.tight_layout(rect=[0, 0, 1, 0.95])
 
     plt.show()  # Visualizza il grafico finale
-    
+
+
 # CONFRONTO DEGLI ALGORITMI MACHINE LEARNING
 
-def esegui_confronto_modelli():  # Valuta KNN, Decision Tree e Random Forest
+def crea_modello(configurazione):  # Costruisce il modello dalla configurazione scelta
+
+    algoritmo = configurazione["algoritmo"]  # Recupera l'algoritmo
+
+    if algoritmo == "KNN":
+        return make_pipeline(
+            StandardScaler(),  # Standardizza le caratteristiche nel singolo fold
+            KNeighborsClassifier(n_neighbors=int(configurazione["k"]))
+        )
+
+    profondita = configurazione["max_depth"]  # Recupera la profondità
+    profondita = None if pd.isna(profondita) else int(profondita)
+    peso = configurazione["peso_classi"]  # Recupera il bilanciamento
+    peso = None if peso == "nessuno" else "balanced"
+
+    if algoritmo == "Decision Tree":
+        return DecisionTreeClassifier(
+            criterion=configurazione["criterio"],  # Utilizza Gini oppure Entropy
+            max_depth=profondita,  # Imposta la profondità
+            min_samples_leaf=20,  # Limita le foglie troppo piccole
+            class_weight=peso,  # Bilancia le classi quando richiesto
+            random_state=42
+        )
+
+    if algoritmo == "Random Forest":
+        return RandomForestClassifier(
+            n_estimators=int(configurazione["n_estimators"]),  # Numero di alberi
+            max_depth=profondita,  # Profondità massima
+            min_samples_leaf=5,  # Riduce l'eccessivo adattamento ai dati
+            class_weight=peso,  # Bilancia le classi quando richiesto
+            random_state=42,
+            n_jobs=-1
+        )
+
+    raise ValueError("Algoritmo non riconosciuto!")
+
+
+# VALUTAZIONE E CONFRONTO DEI MODELLI
+
+def esegui_confronto_modelli():  # Confronta i modelli senza utilizzare i questionari
 
     global X_train, y_train, X_test, cv, risultati_cv, confronto
     global metriche, parametri, indici_migliori, migliori_modelli
+    global X_sviluppo, X_verifica, y_sviluppo, y_verifica
 
-    X_train = df_X[colonne + ["bmi"]]  # Seleziona le caratteristiche dello storico
-    y_train = df_X[target]  # Seleziona gli eventi coronarici osservati
-    X_test = df_y[colonne + ["bmi"]]  # Seleziona le caratteristiche dei questionari
+    X_train = df_X[colonne + ["bmi"]]  # Seleziona le caratteristiche storiche
+    y_train = df_X[target]  # Seleziona gli eventi registrati
+    X_test = df_y[colonne + ["bmi"]]  # Memorizza il questionario da analizzare
 
+    # SUDDIVISIONE DEL DATASET STORICO
 
-    # PREPARAZIONE DELLA CROSS-VALIDATION
+    X_sviluppo, X_verifica, y_sviluppo, y_verifica = train_test_split(
+        X_train, y_train,
+        test_size=0.20,  # Riserva il 20% per una verifica indipendente
+        stratify=y_train,  # Mantiene le proporzioni delle classi
+        random_state=42
+    )
 
     cv = StratifiedKFold(
-        n_splits=5,  # Divide i dati in cinque gruppi
-        shuffle=True,  # Mescola le osservazioni
-        random_state=42  # Rende riproducibile la suddivisione
+        n_splits=5,  # Effettua cinque validazioni sui soli dati di sviluppo
+        shuffle=True,
+        random_state=42
     )
 
-    risultati_cv = []  # Raccoglie i risultati delle configurazioni
+    # PREPARAZIONE DELLE CONFIGURAZIONI
 
+    configurazioni = []  # Elenca tutti i modelli da confrontare
 
-    # CROSS-VALIDATION KNN
+    for k in [3, 5, 7, 9, 11, 15, 21]:
+        configurazioni.append({
+            "algoritmo": "KNN", "configurazione": f"K={k}",
+            "k": k, "criterio": None, "max_depth": None,
+            "n_estimators": None, "peso_classi": "nessuno"
+        })
 
-    valori_k = [3, 5, 7, 9, 11, 15]  # Definisce i numeri di vicini da provare
-
-    for k in valori_k:  # Prova ogni valore di K
-
-        for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
-
-            X_fold_train = X_train.iloc[indice_train]  # Estrae il training
-            X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
-
-            y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
-            y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
-
-            scaler_fold = StandardScaler()  # Crea lo standardizzatore
-
-            X_fold_train = scaler_fold.fit_transform(X_fold_train)  # Standardizza il training
-            X_fold_val = scaler_fold.transform(X_fold_val)  # Standardizza la validazione
-
-            modello = KNeighborsClassifier(
-                n_neighbors=k  # Imposta il valore di K corrente
-            )
-
-            modello.fit(X_fold_train, y_fold_train)  # Addestra il KNN
-
-            previsioni = modello.predict(X_fold_val)  # Prevede le classi
-            probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
-
-            indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
-            probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
-
-            risultati_cv.append({  # Registra le metriche del fold
-
-                "algoritmo": "KNN",
-                "configurazione": f"K={k}",
-                "k": k,
-                "criterio": None,
-                "max_depth": None,
-                "n_estimators": None,
-
-                "accuracy": accuracy_score(
-                    y_fold_val, previsioni  # Calcola l'accuracy
-                ),
-
-                "precision": precision_score(
-                    y_fold_val, previsioni, zero_division=0  # Calcola la precision
-                ),
-
-                "recall": recall_score(
-                    y_fold_val, previsioni, zero_division=0  # Calcola il recall
-                ),
-
-                "f1_score": f1_score(
-                    y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
-                ),
-
-                "roc_auc": roc_auc_score(
-                    y_fold_val, probabilita_evento  # Calcola la ROC-AUC
-                )
-
-            })
-
-
-    # CROSS-VALIDATION DECISION TREE
-
-    criteri = ["gini", "entropy"]  # Definisce i criteri da confrontare
-    profondita_alberi = [3, 5, 10, None]  # Definisce le profondità da confrontare
-
-    for criterio in criteri:  # Prova ogni criterio
-
-        for profondita in profondita_alberi:  # Prova ogni profondità
-
-            for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
-
-                X_fold_train = X_train.iloc[indice_train]  # Estrae il training
-                X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
-
-                y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
-                y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
-
-                modello = DecisionTreeClassifier(
-                    criterion=criterio,  # Utilizza Gini oppure Entropy
-                    max_depth=profondita,  # Imposta la profondità
-                    min_samples_leaf=20,  # Richiede almeno 20 pazienti per foglia
-                    random_state=42  # Rende riproducibile il modello
-                )
-
-                modello.fit(X_fold_train, y_fold_train)  # Addestra l'albero
-
-                previsioni = modello.predict(X_fold_val)  # Prevede le classi
-                probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
-
-                indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
-                probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
-
-                risultati_cv.append({  # Registra le metriche del fold
-
+    for criterio in ["gini", "entropy"]:
+        for profondita in [3, 5, 10, None]:
+            for peso in ["nessuno", "balanced"]:
+                configurazioni.append({
                     "algoritmo": "Decision Tree",
-
-                    "configurazione": (
-                        f"{criterio} - profondità {profondita}"
-                    ),
-
-                    "k": None,
-                    "criterio": criterio,
-                    "max_depth": profondita,
-                    "n_estimators": None,
-
-                    "accuracy": accuracy_score(
-                        y_fold_val, previsioni  # Calcola l'accuracy
-                    ),
-
-                    "precision": precision_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola la precision
-                    ),
-
-                    "recall": recall_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola il recall
-                    ),
-
-                    "f1_score": f1_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
-                    ),
-
-                    "roc_auc": roc_auc_score(
-                        y_fold_val, probabilita_evento  # Calcola la ROC-AUC
-                    )
-
+                    "configurazione": f"{criterio} - profondità {profondita} - {peso}",
+                    "k": None, "criterio": criterio,
+                    "max_depth": profondita, "n_estimators": None,
+                    "peso_classi": peso
                 })
 
-
-    # CROSS-VALIDATION RANDOM FOREST
-
-    numero_alberi = [100, 200, 300]  # Definisce il numero di alberi
-    profondita_foresta = [5, 10, None]  # Definisce le profondità
-
-    for numero in numero_alberi:  # Prova ogni numero di alberi
-
-        for profondita in profondita_foresta:  # Prova ogni profondità
-
-            for indice_train, indice_val in cv.split(X_train, y_train):  # Scorre i fold
-
-                X_fold_train = X_train.iloc[indice_train]  # Estrae il training
-                X_fold_val = X_train.iloc[indice_val]  # Estrae la validazione
-
-                y_fold_train = y_train.iloc[indice_train]  # Estrae le classi di training
-                y_fold_val = y_train.iloc[indice_val]  # Estrae le classi di validazione
-
-                modello = RandomForestClassifier(
-                    n_estimators=numero,  # Imposta il numero di alberi
-                    max_depth=profondita,  # Imposta la profondità
-                    random_state=42,  # Rende riproducibile il modello
-                    n_jobs=-1  # Utilizza tutti i processori disponibili
-                )
-
-                modello.fit(X_fold_train, y_fold_train)  # Addestra la foresta
-
-                previsioni = modello.predict(X_fold_val)  # Prevede le classi
-                probabilita = modello.predict_proba(X_fold_val)  # Calcola le probabilità
-
-                indice_evento = list(modello.classes_).index(1)  # Individua la classe 1
-                probabilita_evento = probabilita[:, indice_evento]  # Estrae le probabilità positive
-
-                risultati_cv.append({  # Registra le metriche del fold
-
+    for numero in [100, 200]:
+        for profondita in [5, 10, None]:
+            for peso in ["nessuno", "balanced"]:
+                configurazioni.append({
                     "algoritmo": "Random Forest",
-
-                    "configurazione": (
-                        f"{numero} alberi - profondità {profondita}"
-                    ),
-
-                    "k": None,
-                    "criterio": None,
-                    "max_depth": profondita,
-                    "n_estimators": numero,
-
-                    "accuracy": accuracy_score(
-                        y_fold_val, previsioni  # Calcola l'accuracy
-                    ),
-
-                    "precision": precision_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola la precision
-                    ),
-
-                    "recall": recall_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola il recall
-                    ),
-
-                    "f1_score": f1_score(
-                        y_fold_val, previsioni, zero_division=0  # Calcola l'F1-score
-                    ),
-
-                    "roc_auc": roc_auc_score(
-                        y_fold_val, probabilita_evento  # Calcola la ROC-AUC
-                    )
-
+                    "configurazione": f"{numero} alberi - profondità {profondita} - {peso}",
+                    "k": None, "criterio": None,
+                    "max_depth": profondita, "n_estimators": numero,
+                    "peso_classi": peso
                 })
 
+    # CROSS-VALIDATION E CALCOLO DELLE METRICHE
 
-    # CONFRONTO DELLE METRICHE
+    risultati_cv = []  # Memorizza le metriche fuori campione
 
-    df_risultati = pd.DataFrame(risultati_cv)  # Trasforma le valutazioni in un DataFrame
+    for configurazione in configurazioni:
+        modello = crea_modello(configurazione)  # Crea il modello corrente
 
-    metriche = [  # Elenca le metriche da confrontare
-        "accuracy",
-        "precision",
-        "recall",
-        "f1_score",
-        "roc_auc"
-    ]
+        probabilita_oof = cross_val_predict(
+            modello, X_sviluppo, y_sviluppo,
+            cv=cv,  # Ogni paziente è previsto da un modello che non lo ha visto
+            method="predict_proba"
+        )[:, 1]  # Recupera le probabilità della classe positiva
 
-    confronto = (
-        df_risultati
-        .groupby(["algoritmo", "configurazione"])[metriche]  # Raggruppa le configurazioni
-        .mean()  # Calcola le medie sui cinque fold
-        .reset_index()  # Ripristina l'indice
-    )
+        classi_oof = (probabilita_oof >= 0.50).astype(int)  # Soglia iniziale comune
 
-    parametri = (
-        df_risultati[
-            [
-                "algoritmo",
-                "configurazione",
-                "k",
-                "criterio",
-                "max_depth",
-                "n_estimators"
-            ]
-        ]
-        .drop_duplicates()  # Elimina le configurazioni ripetute
-    )
+        riga = configurazione.copy()  # Mantiene tutti i parametri
+        riga.update({
+            "accuracy": accuracy_score(y_sviluppo, classi_oof),
+            "precision": precision_score(y_sviluppo, classi_oof, zero_division=0),
+            "recall": recall_score(y_sviluppo, classi_oof, zero_division=0),
+            "f1_score": f1_score(y_sviluppo, classi_oof, zero_division=0),
+            "roc_auc": roc_auc_score(y_sviluppo, probabilita_oof),
+            "pr_auc": average_precision_score(y_sviluppo, probabilita_oof),
+            "brier": brier_score_loss(y_sviluppo, probabilita_oof)
+        })
+        risultati_cv.append(riga)  # Salva il confronto
 
-    confronto = confronto.merge(
-        parametri,
-        on=["algoritmo", "configurazione"]  # Unisce metriche e parametri
-    )
+    # ORDINAMENTO E SCELTA DEL MODELLO
 
-    confronto[metriche] = confronto[metriche].round(3)  # Arrotonda le metriche
-
+    metriche = ["accuracy", "precision", "recall", "f1_score", "roc_auc", "pr_auc", "brier"]
+    confronto = pd.DataFrame(risultati_cv)  # Costruisce la tabella completa
     confronto = confronto.sort_values(
-        by="f1_score",  # Ordina secondo l'F1-score
-        ascending=False  # Mostra prima i valori più alti
-    )
+        by=["pr_auc", "roc_auc", "brier"],
+        ascending=[False, False, True]
+    ).reset_index(drop=True)  # Privilegia la capacità di distinguere i positivi
 
-    # SELEZIONE DELLE MIGLIORI CONFIGURAZIONI
+    indici_migliori = confronto.groupby("algoritmo")["pr_auc"].idxmax()
+    migliori_modelli = confronto.loc[indici_migliori].reset_index(drop=True)
+    parametri = confronto[[
+        "algoritmo", "configurazione", "k", "criterio",
+        "max_depth", "n_estimators", "peso_classi"
+    ]]  # Mantiene le configurazioni provate
 
-    indici_migliori = (
-        confronto
-        .groupby("algoritmo")["f1_score"]
-        .idxmax()
-    )  # Trova il miglior F1-score per ciascun algoritmo
-
-    migliori_modelli = confronto.loc[
-        indici_migliori
-    ].reset_index(drop=True)  # Salva i parametri migliori
-
-    # CONFERMA DEL CONFRONTO
+    confronto[metriche] = confronto[metriche].round(3)  # Formatta i risultati
+    migliori_modelli[metriche] = migliori_modelli[metriche].round(3)
 
     print("\nConfronto dei modelli completato correttamente!")
     print(f"Configurazioni analizzate: {len(confronto)}")
+    print("Criterio di selezione: PR-AUC (Average Precision).")
+    print("Il 20% dello storico resta escluso dalla scelta dei modelli.")
     print("Premi 3 nel menu per visualizzare tutti i risultati.")
 
 
 # ADDESTRAMENTO DEFINITIVO E PREVISIONI
 
-def esegui_previsioni():  # Addestra automaticamente il modello con F1-score migliore
+def esegui_previsioni():  # Calibra il modello selezionato e prevede i questionari
 
-    if "confronto" not in globals():  # Verifica che il confronto sia stato eseguito
+    global X_test, modello_finale, scaler_finale, risultati, previsioni
+    global probabilita_evento, soglia_finale
+
+    if "confronto" not in globals() or confronto is None or confronto.empty:
         print("Prima esegui il confronto dei modelli (opzione 2).")
         return
 
-    # AGGIORNAMENTO DEL CSV DA ANALIZZARE
-
-    global X_test  # Permette di aggiornare i questionari utilizzati
-
-    X_test = df_y[colonne + ["bmi"]]  # Recupera sempre l'ultimo CSV caricato
-
-    # SCELTA AUTOMATICA DEL MODELLO MIGLIORE
-
-    global modello_finale, scaler_finale, risultati, previsioni, probabilita_evento
-
-    indice_migliore = confronto["f1_score"].idxmax()  # Individua il punteggio F1 medio più alto
-    riga_scelta = confronto.loc[indice_migliore]  # Recupera i parametri della configurazione migliore
-    modello_scelto = riga_scelta["algoritmo"]  # Seleziona automaticamente KNN, Decision Tree o Random Forest
+    X_test = df_y[colonne + ["bmi"]]  # Utilizza il questionario corrente
+    scelta = confronto.iloc[0]  # Recupera la configurazione migliore per PR-AUC
+    modello_scelto = scelta["algoritmo"]  # Identifica il modello selezionato
 
     print("\nMODELLO SCELTO AUTOMATICAMENTE:", modello_scelto)
-    print("CRITERIO: F1-score medio nella cross-validation")
-    print("F1-SCORE MEDIO:", riga_scelta["f1_score"])
-    print("CONFIGURAZIONE:", riga_scelta["configurazione"])
+    print("CRITERIO: PR-AUC nella cross-validation")
+    print("PR-AUC:", scelta["pr_auc"])
+    print("CONFIGURAZIONE:", scelta["configurazione"])
 
+    # CALIBRAZIONE E SCELTA DELLA SOGLIA SUI DATI DI SVILUPPO
 
-    # CREAZIONE DEL MODELLO DEFINITIVO
-
-    if modello_scelto == "KNN":  # Prepara il classificatore KNN
-
-        scaler_finale = StandardScaler()  # Crea lo scaler finale
-
-        X_train_finale = scaler_finale.fit_transform(X_train)  # Standardizza lo storico
-        X_test_finale = scaler_finale.transform(X_test)  # Standardizza i questionari
-
-        modello_finale = KNeighborsClassifier(
-            n_neighbors=int(riga_scelta["k"])  # Utilizza il K migliore
-        )
-
-    elif modello_scelto == "Decision Tree":  # Prepara il Decision Tree
-
-        X_train_finale = X_train  # Utilizza le caratteristiche originali
-        X_test_finale = X_test  # Utilizza i questionari originali
-
-        profondita = riga_scelta["max_depth"]  # Recupera la profondità migliore
-
-        if pd.isna(profondita):  # Verifica se la profondità è illimitata
-            profondita = None
-        else:
-            profondita = int(profondita)  # Converte la profondità in intero
-
-        modello_finale = DecisionTreeClassifier(
-            criterion=riga_scelta["criterio"],  # Utilizza il criterio migliore
-            max_depth=profondita,  # Utilizza la profondità migliore
-            min_samples_leaf=20,  # Richiede almeno 20 pazienti per foglia
-            random_state=42  # Rende riproducibile il modello
-        )
-
-    elif modello_scelto == "Random Forest":  # Prepara la Random Forest
-
-        X_train_finale = X_train  # Utilizza le caratteristiche originali
-        X_test_finale = X_test  # Utilizza i questionari originali
-
-        profondita = riga_scelta["max_depth"]  # Recupera la profondità migliore
-
-        if pd.isna(profondita):  # Verifica se la profondità è illimitata
-            profondita = None
-        else:
-            profondita = int(profondita)  # Converte la profondità in intero
-
-        modello_finale = RandomForestClassifier(
-            n_estimators=int(riga_scelta["n_estimators"]),  # Utilizza il numero di alberi migliore
-            max_depth=profondita,  # Utilizza la profondità migliore
-            random_state=42,  # Rende riproducibile il modello
-            n_jobs=-1  # Utilizza tutti i processori disponibili
-        )
-
-
-    # ADDESTRAMENTO DEL MODELLO
-
-    modello_finale.fit(
-        X_train_finale,  # Utilizza le caratteristiche dei pazienti storici
-        y_train  # Utilizza gli eventi coronarici osservati
+    modello_calibrato = CalibratedClassifierCV(
+        estimator=crea_modello(scelta),  # Calibra il classificatore scelto
+        method="sigmoid",  # Applica la calibrazione di Platt
+        cv=3  # Mantiene distinte le parti di addestramento e calibrazione
     )
 
+    probabilita_oof = cross_val_predict(
+        modello_calibrato, X_sviluppo, y_sviluppo,
+        cv=cv, method="predict_proba"
+    )[:, 1]  # Ottiene probabilità calibrate fuori dal fold
 
-    # PREVISIONI SUI QUESTIONARI
+    
+    # SELEZIONE AUTOMATICA DELLA SOGLIA TRAMITE F1-SCORE
 
-    previsioni = modello_finale.predict(X_test_finale)  # Prevede le classi dei questionari
+    soglia_finale = 0.50  # Soglia iniziale
+    migliore_f1 = -1.0  # Memorizza il miglior F1-score
+    migliore_precision = 0.0  # Memorizza la precision
+    migliore_recall = 0.0  # Memorizza il recall
 
-    probabilita = modello_finale.predict_proba(X_test_finale)  # Calcola le probabilità delle classi
+    for soglia in np.arange(0.10, 0.601, 0.01):
 
-    indice_evento = list(modello_finale.classes_).index(1)  # Individua la classe positiva
+        classi_oof = (probabilita_oof >= soglia).astype(int)
 
-    probabilita_evento = (
-        probabilita[:, indice_evento] * 100  # Converte le probabilità in percentuali
+        precisione = precision_score(
+            y_sviluppo, classi_oof, zero_division=0
+        )
+
+        sensibilita = recall_score(
+            y_sviluppo, classi_oof, zero_division=0
+        )
+
+        punteggio = f1_score(
+            y_sviluppo, classi_oof, zero_division=0
+        )
+
+        if punteggio > migliore_f1:
+            migliore_f1 = punteggio
+            soglia_finale = float(soglia)
+            migliore_precision = precisione
+            migliore_recall = sensibilita
+
+    print(f"SOGLIA SELEZIONATA: {soglia_finale:.3f}")
+    print(f"F1-SCORE DI SVILUPPO: {migliore_f1:.3f}")
+    print(f"PRECISION DI SVILUPPO: {migliore_precision:.3f}")
+    print(f"RECALL DI SVILUPPO: {migliore_recall:.3f}")
+    # VERIFICA SU PAZIENTI STORICI MAI USATI PER LA SCELTA
+
+    modello_verifica = CalibratedClassifierCV(
+        estimator=crea_modello(scelta), method="sigmoid", cv=3
     )
+    modello_verifica.fit(X_sviluppo, y_sviluppo)  # Addestra solo sullo sviluppo
 
+    probabilita_verifica = modello_verifica.predict_proba(X_verifica)[:, 1]
+    classi_verifica = (probabilita_verifica >= soglia_finale).astype(int)
 
-    # RISULTATI DELLE PREVISIONI
+    print("\nVERIFICA INDIPENDENTE SUL 20% DEL DATASET STORICO:")
+    print(f"Precision: {precision_score(y_verifica, classi_verifica, zero_division=0):.3f}")
+    print(f"Recall: {recall_score(y_verifica, classi_verifica, zero_division=0):.3f}")
+    print(f"F2-score: {fbeta_score(y_verifica, classi_verifica, beta=2, zero_division=0):.3f}")
+    print(f"ROC-AUC: {roc_auc_score(y_verifica, probabilita_verifica):.3f}")
+    print(f"PR-AUC: {average_precision_score(y_verifica, probabilita_verifica):.3f}")
+    print(f"Brier score: {brier_score_loss(y_verifica, probabilita_verifica):.3f}")
+
+    # ADDESTRAMENTO DEFINITIVO SU TUTTO LO STORICO
+
+    modello_finale = CalibratedClassifierCV(
+        estimator=crea_modello(scelta), method="sigmoid", cv=5
+    )  # Mantiene la calibrazione anche nel modello definitivo
+    modello_finale.fit(X_train, y_train)  # Addestra sullo storico completo
+    scaler_finale = None  # Lo scaler KNN è gestito nella Pipeline
+
+    # PREVISIONI SUL QUESTIONARIO CARICATO
+
+    probabilita_evento = modello_finale.predict_proba(X_test)[:, 1] * 100
+    previsioni = ((probabilita_evento / 100) >= soglia_finale).astype(int)
 
     risultati = pd.DataFrame({
-
-        "utente": range(1, len(X_test) + 1),  # Numera le righe dei risultati
-
-        "previsione": previsioni,  # Mostra la classe prevista
-
-        "probabilita_evento_percentuale": (
-            probabilita_evento.round(2)  # Arrotonda le probabilità
-        )
-
+        "utente": range(1, len(X_test) + 1),  # Conserva l'ID progressivo
+        "previsione": previsioni,  # Applica la soglia ottimizzata
+        "probabilita_evento_percentuale": probabilita_evento.round(2)
     })
 
     print("\nMODELLO UTILIZZATO:", modello_scelto)
+    print(f"SOGLIA DI CLASSIFICAZIONE: {soglia_finale:.3f}")
+    print("Le percentuali sono stime del modello, non diagnosi cliniche.")
     print("\nRISULTATI HEART VISION:")
-    print(risultati)  # Visualizza le previsioni
+    print(risultati)  # Visualizza tutte le previsioni
 
 
 # VISUALIZZAZIONE DEI GRAFICI
@@ -1261,15 +1123,16 @@ def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello in st
     df = risultati.copy()
     totale_utenti = len(df)
 
-    # Suddivisione delle probabilità per classe prevista
-    c0 = df[df["previsione"] == 0]["probabilita_evento_percentuale"]
-    c1 = df[df["previsione"] == 1]["probabilita_evento_percentuale"]
+    # CLASSI PREVISTE E FASCE DI PROBABILITÀ
 
-    # Conteggio utenti nelle 4 fasce di probabilità
-    n_c0_b1 = len(c0[c0 <= 25])   # Classe 0: rischio molto basso (0% - 25%)
-    n_c0_b2 = len(c0[c0 > 25])    # Classe 0: rischio medio-basso (25% - 50%)
-    n_c1_b1 = len(c1[c1 <= 75])   # Classe 1: rischio moderato (50% - 75%)
-    n_c1_b2 = len(c1[c1 > 75])    # Classe 1: rischio elevato (75% - 100%)
+    c0 = df[df["previsione"] == 0]  # Partecipanti classificati come 0
+    c1 = df[df["previsione"] == 1]  # Partecipanti classificati come 1
+    p = df["probabilita_evento_percentuale"]  # Stime percentuali
+
+    n_b1 = int((p <= 25).sum())  # Prima fascia: 0-25%
+    n_b2 = int(((p > 25) & (p <= 50)).sum())  # Seconda fascia: 25-50%
+    n_b3 = int(((p > 50) & (p <= 75)).sum())  # Terza fascia: 50-75%
+    n_b4 = int((p > 75).sum())  # Quarta fascia: 75-100%
 
     # Costruzione dinamica anello interno (Macro Classi) con palette scura/coordinata
     valori_interno = []
@@ -1279,19 +1142,19 @@ def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello in st
     if len(c0) > 0:
         valori_interno.append(len(c0))
         colori_interno.append("#3A86FF")  # Blu coordinato stile web
-        etichette_interno_legenda.append(f"Classe 0 - Basso Rischio ({len(c0)} utenti)")
+        etichette_interno_legenda.append(f"Classe 0 - Non segnalato ({len(c0)} utenti)")
 
     if len(c1) > 0:
         valori_interno.append(len(c1))
         colori_interno.append("#E85D75")  # Rosso corallo coordinato
-        etichette_interno_legenda.append(f"Classe 1 - Rischio Evento ({len(c1)} utenti)")
+        etichette_interno_legenda.append(f"Classe 1 - Segnalato ({len(c1)} utenti)")
 
     # Costruzione dinamica anello esterno (Fasce di probabilità) con sfumature coordinate
     fasce_config = [
-        (n_c0_b1, "#1D3557", "Fascia 0% - 25%"),
-        (n_c0_b2, "#457B9D", "Fascia 25% - 50%"),
-        (n_c1_b1, "#D90429", "Fascia 50% - 75%"),
-        (n_c1_b2, "#EF476F", "Fascia 75% - 100%")
+        (n_b1, "#1D3557", "Fascia 0% - 25%"),
+        (n_b2, "#457B9D", "Fascia 25% - 50%"),
+        (n_b3, "#D90429", "Fascia 50% - 75%"),
+        (n_b4, "#EF476F", "Fascia 75% - 100%")
     ]
 
     valori_esterno = []
@@ -1419,7 +1282,7 @@ def menu_principale():  # Gestisce la navigazione del programma
 
             elif scelta == "3":  # Visualizza i risultati del confronto
 
-                if "confronto" in globals():
+                if "confronto" in globals() and confronto is not None and not confronto.empty:
 
                     print("\nCONFRONTO COMPLETO DEGLI ALGORITMI:")
                     print(confronto.to_string(index=False))
