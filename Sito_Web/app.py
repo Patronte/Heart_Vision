@@ -61,7 +61,7 @@ def index():
 def stato():
     g = lambda k: rec(S[k]) if k in S else None
     return jsonify(dataset="X" in S, confronto=g("confronto"), migliori=g("migliori"),
-                   risultati=g("risultati"), modello=S.get("modello"), calcolo=P["stato"])
+                   risultati=g("risultati"), modello=S.get("modello"), calcolo=P["stato"], emails=S.get("email"))
 
 
 # 1. Caricamento e pulizia
@@ -72,16 +72,20 @@ def carica():
     if not (f2 and f2.filename):
         raise ValueError("Devi inserire un file CSV con le risposte del questionario!")
     dx = controllo_csv(pd.read_csv(f1 if f1 and f1.filename else P_STORICO), tipo="storico")
-    dy = converti_questionario(pd.read_csv(f2))
+    raw = pd.read_csv(f2)  # le email servono per l'analisi del singolo paziente
+    col = next((c for n in ["email", "indirizzo email", "email address", "username"]
+                for c in raw.columns if c.strip().lower() == n), None)
+    emails = raw[col].astype("string").str.strip().str.lower().fillna("").tolist() if col is not None else None
+    dy = converti_questionario(raw)
     dy = controllo_csv(dy, tipo="questionario", riferimento=dx)
     S.pop("risultati", None); S.pop("modello", None)  # niente risultati di un altro CSV
     if f1 and f1.filename:  # nuovo storico: il vecchio confronto non è più valido
         for k in ("confronto", "migliori"):
             S.pop(k, None)
-    S.update(X=dx, Y=dy)
+    S.update(X=dx, Y=dy, email=emails)
     return jsonify(storico=dict(righe=len(dx), eventi=round(float(dx[target].mean() * 100), 1),
                                 head=rec(dx.head())),
-                   questionari=dict(righe=len(dy), head=rec(dy.head())))
+                   questionari=dict(righe=len(dy), head=rec(dy.head())), emails=emails)
 
 
 # 2-3. Confronto KNN / Decision Tree / Random Forest
@@ -206,6 +210,49 @@ def fattori():
     for f in ["fumatore", "diabete", "colesterolo_alto", "alcol", "ictus_precedente", "ipertensione"]:
         out.append(dict(fattore=f.upper(), rischio=round(float(df[df[f] == 1][target].mean() * 100), 2)))
     return jsonify(sorted(out, key=lambda x: -x["rischio"]))
+
+
+# 7. Studio singolo paziente (ricerca tramite email)
+@app.get("/api/partecipante")
+@api
+def partecipante():
+    if "risultati" not in S:
+        raise ValueError("Prima carica il CSV ed esegui le previsioni.")
+    em, dy, ris = S.get("email"), S["Y"], S["risultati"]
+    if em is None:
+        raise ValueError("Il CSV caricato non contiene una colonna email o Username.")
+    if len(em) != len(dy) or len(ris) != len(dy):
+        raise ValueError("I dati non corrispondono: ricarica il CSV ed esegui le previsioni.")
+    q = request.args.get("email", "").strip().lower()
+    if not q:
+        raise ValueError("Devi inserire un indirizzo email.")
+    trovati = [i for i, e in enumerate(em) if e == q]
+    if not trovati:
+        raise ValueError("Email non trovata nel CSV attualmente caricato.")
+    if len(trovati) > 1:  # stessa email presente più volte: serve l'ID
+        sid = request.args.get("id", "")
+        if not sid.isdigit() or int(sid) - 1 not in trovati:
+            return jsonify(ids=[i + 1 for i in trovati])
+        i = int(sid) - 1
+    else:
+        i = trovati[0]
+    sogg, prev, df = dy.iloc[i], ris.iloc[i], S["X"]
+    num = []
+    for c, nome in [("eta", "Età (anni)"), ("sigarette_giorno", "Sigarette/giorno"), ("bmi", "BMI"),
+                    ("frequenza_cardiaca", "Frequenza cardiaca"), ("sere_alcol_settimana", "Sere con alcol/settimana")]:
+        v = float(sogg[c])
+        st = pd.to_numeric(df[c], errors="coerce").dropna()
+        lim = float(st.quantile(0.90))  # 90° percentile dello storico
+        num.append(dict(nome=nome, valore=round(v, 2), limite=round(lim, 2),
+                        rango=round(float((st <= v).mean() * 100), 1), elevato=bool(v > lim)))
+    ind = [dict(nome=n, presente=int(sogg[c])) for c, n in [
+        ("fumatore", "Fumatore"), ("farmaci_pressione", "Farmaci per pressione"), ("ictus_precedente", "Ictus precedente"),
+        ("ipertensione", "Ipertensione"), ("diabete", "Diabete"), ("colesterolo_alto", "Colesterolo alto"),
+        ("alcol", "Consumo di alcol"), ("sport", "Attività sportiva")]]
+    return jsonify(id=int(prev["utente"]), email=q, classe=int(prev["previsione"]),
+                   percentuale=float(prev["probabilita_evento_percentuale"]),
+                   caratteristiche={c: round(float(sogg[c]), 2) for c in colonne + ["bmi"]},
+                   numeriche=num, indicatori=ind)
 
 
 if __name__ == "__main__":

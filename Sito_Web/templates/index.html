@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
@@ -7,92 +8,81 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff6f7;--grid:#f6dce0;--grid2:#fbeaed;--card:#fff;--tx:#1c2540;--mu:#667089;--ac:#c8102e;--ac2:#8f0a22;--navy:#16203a;--bd:#ecd3d8;--er:#b3261e;--ok:#1f7a5a;
---sh:0 1px 2px rgba(120,20,40,.06),0 10px 28px -14px rgba(120,20,40,.35);--sh2:0 2px 4px rgba(120,20,40,.08),0 18px 36px -16px rgba(120,20,40,.45);--r:16px;--glow:rgba(200,16,46,.10)}
-@media(prefers-color-scheme:dark){:root{--bg:#141a2b;--grid:#25213b;--grid2:#1d2136;--card:#1c2338;--tx:#eef0f8;--mu:#a3abc4;--ac:#ff5a73;--ac2:#ff8a9b;--navy:#0c1120;--bd:#34304d;--er:#ff8a80;--ok:#5fd3a6;
---sh:0 1px 2px rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.7);--sh2:0 2px 4px rgba(0,0,0,.35),0 18px 36px -16px rgba(0,0,0,.8);--glow:rgba(255,90,115,.10)}}
+:root{--bg:#fff6f7;--grid:#f6d9de;--grid2:#fbe9ec;--card:#fff;--tx:#1c2540;--mu:#667089;--ac:#c8102e;--ac2:#8f0a22;--navy:#16203a;--bd:#ecd3d8;--er:#b3261e;--ok:#1f7a5a}
+@media(prefers-color-scheme:dark){:root{--bg:#141a2b;--grid:#2a2440;--grid2:#1d2136;--card:#1c2338;--tx:#eef0f8;--mu:#a3abc4;--ac:#ff5a73;--ac2:#ff8a9b;--navy:#0c1120;--bd:#34304d;--er:#ff8a80;--ok:#5fd3a6}}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;font:15px/1.6 'Instrument Sans',system-ui,sans-serif;color:var(--tx);background-color:var(--bg);min-height:100vh;
-background-image:radial-gradient(900px 420px at 85% 0,var(--glow),transparent 70%),radial-gradient(700px 380px at 0 60%,var(--glow),transparent 70%),
-linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);
-background-size:auto,auto,50px 50px,50px 50px,10px 10px,10px 10px;background-attachment:fixed,fixed,scroll,scroll,scroll,scroll}
-::selection{background:var(--ac);color:#fff}
+body{margin:0;font:15px/1.6 'Instrument Sans',system-ui,sans-serif;color:var(--tx);background-color:var(--bg);
+background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);
+background-size:50px 50px,50px 50px,10px 10px,10px 10px}
 h1,h2{font-family:Fraunces,Georgia,serif}
-.hero{background:radial-gradient(600px 260px at 78% 20%,rgba(255,77,104,.28),transparent 70%),radial-gradient(500px 300px at 5% 100%,rgba(255,77,104,.14),transparent 70%),linear-gradient(135deg,#1b2848,var(--navy) 60%);color:#fff;position:relative;overflow:hidden;border-bottom:0}
-.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--ac2),var(--ac),#ff8a9b,var(--ac),var(--ac2))}
-.hero .wrap{max-width:1100px;margin:auto;padding:42px 24px 104px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;position:relative;z-index:1}
-.heart{width:84px;height:84px;flex:none;filter:drop-shadow(0 0 18px rgba(255,60,90,.6));animation:beat 1.2s ease-in-out infinite;transform-origin:center}
+.hero{background:var(--navy);color:#fff;position:relative;overflow:hidden;border-bottom:4px solid var(--ac)}
+.hero .wrap{max-width:1100px;margin:auto;padding:34px 24px 96px;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.heart{width:76px;height:76px;flex:none;filter:drop-shadow(0 0 14px rgba(255,60,90,.55));animation:beat 1.2s ease-in-out infinite;transform-origin:center}
 @keyframes beat{0%,50%,100%{transform:scale(1)}12%{transform:scale(1.14)}24%{transform:scale(1)}34%{transform:scale(1.08)}}
-.hero h1{margin:0;font-size:clamp(36px,6vw,58px);font-weight:800;letter-spacing:-.8px;line-height:1.02;background:linear-gradient(180deg,#fff 40%,#ffc9d2);-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero p{margin:10px 0 0;color:#c9cfe4;max-width:560px;font-size:15.5px}
+.hero h1{margin:0;font-size:clamp(34px,6vw,54px);font-weight:800;letter-spacing:-.5px;line-height:1.05}
+.hero p{margin:8px 0 0;color:#c5cbe0;max-width:560px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;max-width:330px;justify-content:flex-end}
-.chips span{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);backdrop-filter:blur(6px);border-radius:99px;padding:4px 14px;font-size:13px;color:#eef0fa;transition:.2s}
-.chips span:hover{background:rgba(255,90,115,.25);border-color:rgba(255,140,160,.6);transform:translateY(-1px)}
+.chips span{border:1px solid rgba(255,255,255,.28);border-radius:99px;padding:3px 12px;font-size:13px;color:#e4e7f3}
 .ecg{position:absolute;left:0;bottom:0;width:100%;height:84px}
-.ecg path{fill:none;stroke:#ff4d68;stroke-width:3;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 5s linear infinite;filter:drop-shadow(0 0 6px #ff4d68)}
+.ecg path{fill:none;stroke:#ff4d68;stroke-width:3;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 5s linear infinite;filter:drop-shadow(0 0 5px #ff4d68)}
 @keyframes draw{0%{stroke-dashoffset:1;opacity:1}75%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
-nav{display:flex;gap:6px;max-width:1052px;margin:-30px auto 0;padding:6px;position:relative;z-index:2;counter-reset:s;background:var(--card);border:1px solid var(--bd);border-radius:18px;box-shadow:var(--sh2)}
-nav button{flex:1;counter-increment:s;background:transparent;border:0;border-radius:13px;padding:12px 10px;color:var(--mu);font:600 14px 'Instrument Sans',sans-serif;cursor:pointer;display:flex;gap:10px;align-items:center;justify-content:center;transition:background .2s,color .2s,transform .15s,box-shadow .2s}
-nav button::before{content:counter(s);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--grid2);color:var(--mu);border:1px solid var(--bd);transition:.2s}
-nav button:hover{background:var(--grid2);color:var(--tx)}
-nav button.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;box-shadow:0 8px 18px -8px var(--ac)}
-nav button.on::before{background:#fff;color:var(--ac);border-color:#fff}
+nav{display:flex;gap:0;max-width:1100px;margin:-26px auto 0;padding:0 24px;position:relative;counter-reset:s}
+nav button{flex:1;counter-increment:s;background:var(--card);border:1px solid var(--bd);border-left-width:0;padding:13px 10px;color:var(--mu);font:600 14px 'Instrument Sans',sans-serif;cursor:pointer;display:flex;gap:9px;align-items:center;justify-content:center}
+nav button:first-child{border-left-width:1px;border-radius:8px 0 0 8px}nav button:last-child{border-radius:0 8px 8px 0}
+nav button::before{content:counter(s);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--grid2);color:var(--mu);border:1px solid var(--bd)}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}nav button.on::before{background:#fff;color:var(--ac);border-color:#fff}
 nav button:focus-visible,.go:focus-visible{outline:3px solid var(--ac2);outline-offset:2px}
-main{max-width:1100px;margin:auto;padding:28px 24px 12px}
-section{display:none}section.on{display:block;animation:rise .45s cubic-bezier(.2,.7,.2,1)}
-@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:22px 24px;margin-bottom:20px;box-shadow:var(--sh);position:relative;overflow:hidden;transition:box-shadow .25s,transform .25s}
-.card::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:linear-gradient(90deg,var(--ac),#ff8a9b 60%,transparent)}
-.card:hover{box-shadow:var(--sh2)}
-h2{margin:0 0 14px;font-size:21px;font-weight:600;display:flex;gap:12px;align-items:center;letter-spacing:-.2px}
-h2::before{content:"";width:10px;height:10px;flex:none;border-radius:50%;background:var(--ac);box-shadow:0 0 0 4px var(--grid2),0 0 12px var(--ac)}
-label{display:block;margin:14px 0;color:var(--mu);font-size:13.5px;line-height:1.5}
-input[type=file]{display:block;width:100%;margin-top:8px;padding:12px;color:var(--mu);font:inherit;font-size:13.5px;background:var(--grid2);border:1.5px dashed var(--bd);border-radius:12px;cursor:pointer;transition:.2s}
-input[type=file]:hover{border-color:var(--ac);background:var(--card)}
-input[type=file]::file-selector-button{margin-right:14px;padding:8px 16px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:600 13px 'Instrument Sans',sans-serif;cursor:pointer;transition:.2s}
-input[type=file]::file-selector-button:hover{background:var(--ac)}
-button.go{background:linear-gradient(180deg,var(--ac),var(--ac2));color:#fff;border:0;border-radius:12px;padding:11px 26px;font:600 15px 'Instrument Sans',sans-serif;cursor:pointer;box-shadow:0 8px 18px -8px var(--ac),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .15s,box-shadow .2s,filter .2s;margin-top:4px}
-button.go:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 12px 22px -8px var(--ac),inset 0 1px 0 rgba(255,255,255,.25)}
-button.go:active{transform:translateY(0)}
-button.go:disabled{opacity:.55;cursor:wait;transform:none;filter:none}
-select{font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
-.sc{overflow:auto;max-height:420px;border:1px solid var(--bd);border-radius:12px;scrollbar-width:thin;scrollbar-color:var(--ac) transparent}
-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
-th,td{padding:9px 14px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
-th{position:sticky;top:0;z-index:1;background:var(--navy);color:#fff;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
-tr:last-child td{border-bottom:0}
-tbody tr:nth-child(even) td,tr:nth-child(even) td{background:var(--grid2)}
-tr:hover td{background:color-mix(in srgb,var(--ac) 10%,var(--card))}
-.msg{margin:12px 0 0;color:var(--mu)}.err{color:var(--er);font-weight:600}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+main{max-width:1100px;margin:auto;padding:24px}section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-top:3px solid var(--ac);border-radius:4px 4px 10px 10px;padding:18px 20px;margin-bottom:18px;box-shadow:0 6px 18px -10px rgba(120,20,40,.35)}
+h2{margin:0 0 12px;font-size:20px;font-weight:600;display:flex;gap:10px;align-items:center}
+h2::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 4px var(--grid2)}
+label{display:block;margin:10px 0;color:var(--mu);font-size:13px}
+input[type=file]{margin-top:4px;color:var(--tx)}
+button.go{background:linear-gradient(180deg,var(--ac),var(--ac2));color:#fff;border:0;border-radius:8px;padding:10px 22px;font:600 15px 'Instrument Sans',sans-serif;cursor:pointer}
+button.go:hover{filter:brightness(1.1)}button.go:disabled{opacity:.55;cursor:wait}
+select{font:inherit;padding:9px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+.sc{overflow:auto;max-height:420px;border:1px solid var(--bd);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 12px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--navy);color:#fff;font-weight:600}tbody tr:nth-child(even) td,tr:nth-child(even) td{background:var(--grid2)}
+.msg{margin:10px 0 0;color:var(--mu)}.err{color:var(--er);font-weight:600}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .cv{position:relative;height:340px}.k{font:800 34px Fraunces,serif;color:var(--ac)}
-footer{max-width:1100px;margin:0 auto;padding:10px 24px 40px;color:var(--mu);font-size:13px;display:flex;gap:12px;align-items:center}
-footer::before{content:"";width:34px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--ac),#ff8a9b);flex:none}
-@media(max-width:720px){.chips{margin-left:0;justify-content:flex-start}nav{margin:-30px 12px 0;padding:5px;gap:3px}nav button{font-size:12px;padding:10px 4px;flex-direction:column;gap:4px}.card{padding:18px 16px}}
-@media(prefers-reduced-motion:reduce){.heart,.ecg path,section.on{animation:none}.ecg path{stroke-dashoffset:0}}
+footer{max-width:1100px;margin:0 auto;padding:6px 24px 36px;color:var(--mu);font-size:13px;display:flex;gap:10px;align-items:center}
+footer::before{content:"";width:28px;height:2px;background:var(--ac);flex:none}
+@media(max-width:720px){.chips{margin-left:0;justify-content:flex-start}nav{padding:0 12px}nav button{font-size:12px;padding:11px 4px;flex-direction:column;gap:4px}}
+@media(prefers-reduced-motion:reduce){.heart,.ecg path{animation:none}.ecg path{stroke-dashoffset:0}}
 
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
-.kpi{background:radial-gradient(180px 90px at 100% 0,var(--glow),transparent 70%),var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:6px 16px 16px 6px;padding:14px 18px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s}
-.kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2)}
-.kpi b{display:block;font:800 32px/1.1 Fraunces,serif;color:var(--ac)}.kpi span{color:var(--mu);font-size:13px}
-.b{display:inline-block;padding:2px 12px;border-radius:99px;font-weight:600;font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:4px 10px 10px 4px;padding:12px 16px}
+.kpi b{display:block;font:800 30px/1.1 Fraunces,serif;color:var(--ac)}.kpi span{color:var(--mu);font-size:13px}
+.b{display:inline-block;padding:1px 11px;border-radius:99px;font-weight:600;font-size:12px}
 .b1{background:#fde1e6;color:#a40d26}.b0{background:#dfeaf5;color:#2b5a85}
-.model{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.model svg{width:52px;height:52px;flex:none;filter:drop-shadow(0 4px 8px rgba(200,16,46,.35));animation:beat 1.2s ease-in-out infinite;transform-origin:center}
-.model strong{font:600 24px Fraunces,serif}.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mu);margin-top:12px}
-.leg i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+.model{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.model svg{width:44px;height:44px;flex:none}
+.model strong{font:600 22px Fraunces,serif}.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mu);margin-top:10px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 @media(prefers-color-scheme:dark){.b1{background:#4a1f2b;color:#ff9fb0}.b0{background:#1f3550;color:#9cc4ec}}
 
-.load{text-align:center;padding:30px 16px}.pct{font:800 72px/1 Fraunces,serif;background:linear-gradient(180deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.lheart{width:120px;height:120px;margin:14px auto 6px;display:block;filter:drop-shadow(0 0 14px rgba(255,60,90,.5));transform-origin:center}
+.load{text-align:center;padding:26px 16px}.pct{font:800 68px/1 Fraunces,serif;color:var(--ac)}
+.lheart{width:112px;height:112px;margin:12px auto 4px;display:block;filter:drop-shadow(0 0 12px rgba(255,60,90,.45));transform-origin:center}
 .lheart.run{animation:beat 1.2s ease-in-out infinite}
 .lheart .tr{fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
 .lheart.run .tr{stroke-dasharray:1;stroke-dashoffset:1;animation:dr 1.2s linear infinite}
 @keyframes dr{to{stroke-dashoffset:0}}
-.bar{height:11px;border-radius:99px;background:var(--grid2);border:1px solid var(--bd);overflow:hidden;max-width:440px;margin:12px auto}
-.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac2),var(--ac),#ff8a9b);background-size:200% 100%;animation:sh 2s linear infinite;border-radius:99px;transition:width .5s}
-@keyframes sh{to{background-position:-200% 0}}
+.bar{height:9px;border-radius:99px;background:var(--grid2);border:1px solid var(--bd);overflow:hidden;max-width:420px;margin:10px auto}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac2),var(--ac));transition:width .5s}
 .phrase{min-height:26px;color:var(--mu);font-style:italic}
-@media(prefers-reduced-motion:reduce){.lheart.run,.lheart.run .tr,.model svg,.bar i{animation:none}}
+@media(prefers-reduced-motion:reduce){.lheart.run,.lheart.run .tr{animation:none}}
+
+.card{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z' fill='none' stroke='%23c8102e' stroke-opacity='.1' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px top 12px;background-size:62px}
+.hero::after{content:"";position:absolute;top:0;bottom:0;left:-200px;width:160px;background:linear-gradient(90deg,transparent,rgba(255,77,104,.18),transparent);animation:scan 6s linear infinite;pointer-events:none}
+@keyframes scan{to{transform:translateX(calc(100vw + 260px))}}
+nav button::before{display:none}nav button svg{width:18px;height:18px;flex:none;pointer-events:none}
+.empty{text-align:center;padding:34px 16px;color:var(--mu);border:2px dashed var(--bd);border-radius:12px;background:var(--card)}
+.empty svg{width:60px;height:60px;opacity:.55;display:block;margin:0 auto 8px}
+.f0{background:#dbe7f3;color:#1d4f7a}.f1{background:#e3f0f9;color:#2a6a9a}.f2{background:#fbe0e5;color:#9c2338}.f3{background:#fde8ec;color:#b4455b}
+input[type=email],input[type=text]{font:inherit;padding:9px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);min-width:280px}
+@media(prefers-color-scheme:dark){.f0{background:#1c3350;color:#9cc4ec}.f1{background:#23415e;color:#b4d6f2}.f2{background:#4a1f2b;color:#ff9fb0}.f3{background:#552633;color:#ffb3c0}}
+@media(prefers-reduced-motion:reduce){.hero::after{animation:none;display:none}}
 </style>
 </head>
 <body>
@@ -100,38 +90,46 @@ footer::before{content:"";width:34px;height:3px;border-radius:3px;background:lin
   <svg class="heart" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b81"/><stop offset="1" stop-color="#c8102e"/></linearGradient></defs>
   <path d="M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z" fill="url(#hg)"/>
   <path d="M8 33h15l4-9 7 19 5-10h17" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div><h1>HeartVision</h1><p>Stima il rischio di evento coronarico a 10 anni confrontando tre algoritmi di machine learning addestrati sui dati Framingham e applicali alle risposte di un questionario.</p></div>
-  <div class="chips"><span>KNN</span><span>Decision Tree</span><span>Random Forest</span><span>Modello scelto in automatico</span></div>
+  <div><h1>HeartVision</h1><p>Stima il rischio di evento coronarico a 10 anni confrontando tre algoritmi di machine learning addestrati sui dati Framingham e applicali alle risposte di un questionario e studia ogni paziente nel dettaglio.</p></div>
+  <div class="chips"><span>KNN</span><span>Decision Tree</span><span>Random Forest</span><span>Modello scelto in automatico</span><span>Analisi per paziente</span></div>
 </div>
 <svg class="ecg" viewBox="0 0 1200 84" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M0 52H180L196 52 210 40 224 52H300L316 52 330 20 348 78 364 52H420L436 52 452 44 470 52H640L656 52 670 40 684 52H760L776 52 790 14 810 80 826 52H880L896 52 912 44 930 52H1200"/></svg></header>
 <nav id="nav" aria-label="Fasi di lavoro">
-  <button data-t="t1" class="on">Dataset</button>
-  <button data-t="t2">Confronto modelli</button>
-  <button data-t="t3">Previsioni</button>
-  <button data-t="t4">Fattori di rischio</button>
+  <button data-t="t1" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Dataset</button>
+  <button data-t="t2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V11M12 21V4M19 21v-7"/></svg>Confronto modelli</button>
+  <button data-t="t3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.5 1 4.5 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/></svg>Previsioni</button>
+  <button data-t="t4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Fattori di rischio</button>
+  <button data-t="t5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.400 3.600-7 8-7s8 2.600 8 7"/></svg>Singolo paziente</button>
 </nav>
 <main>
 <section id="t1" class="on">
   <div class="card"><h2>Caricamento e pulizia dei dataset</h2>
+    <p class="msg">Il dataset storico Framingham è già incluso nel sito: carica solo il CSV con le risposte del questionario.</p>
     <label>Risposte del questionario (CSV) — obbligatorio<br><input type="file" id="f2" accept=".csv"></label>
-    <label>Dataset storico Framingham (CSV) — facoltativo, altrimenti Dataset_storico/HEARTVISION_dataset_completo.csv<br><input type="file" id="f1" accept=".csv"></label>
     <button class="go" id="b1">Carica e pulisci</button><div class="msg" id="m1"></div></div>
-  <div id="o1"></div>
+  <div id="o1"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Carica i dataset per vedere qui anteprime e statistiche.</div></div>
 </section>
 <section id="t2">
   <div class="card"><h2>KNN, Decision Tree e Random Forest</h2>
     <p class="msg">Cross-validation stratificata a 5 fold su tutte le configurazioni: può richiedere qualche minuto.</p>
     <button class="go" id="b2">Esegui il confronto</button><div class="msg" id="m2"></div></div>
-  <div id="o2"></div>
+  <div id="o2"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Nessun confronto ancora: avvia il calcolo per vedere le metriche dei modelli.</div></div>
 </section>
 <section id="t3">
   <div class="card"><h2>Addestramento automatico e previsioni</h2>
     <p class="msg">Viene addestrato il modello con l'F1-score medio più alto e applicato a ogni partecipante del questionario.</p>
     <button class="go" id="b3">Addestra e prevedi</button><div class="msg" id="m3"></div></div>
-  <div id="o3"></div>
+  <div id="o3"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Le previsioni compariranno qui dopo l’addestramento del modello migliore.</div></div>
 </section>
 <section id="t4">
   <div class="card"><h2>Incidenza dei fattori di rischio a 10 anni</h2><div class="cv"><canvas id="g1"></canvas></div><p class="msg" id="n1"></p></div>
+</section>
+<section id="t5">
+  <div class="card"><h2>Studio singolo paziente</h2>
+    <p class="msg">Cerca un partecipante tramite l'email presente nel CSV (servono dataset caricato e previsioni già eseguite).</p>
+    <div class="row"><input type="text" id="em" list="el" placeholder="nome@esempio.it" autocomplete="off"><datalist id="el"></datalist>
+    <button class="go" id="b5">Analizza</button></div><div class="msg" id="m5"></div></div>
+  <div id="o5"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C5 16 3 12 3 8.5 3 6 5 4 7.5 4c2 0 3.500 1 4.500 3C13 5 14.500 4 16.500 4 19 4 21 6 21 8.500c0 3.500-2 7.500-9 12.500z"/><path d="M6 12h3l2-4 2 8 2-4h3"/></svg>Inserisci un’email per vedere l’analisi individuale.</div></div>
 </section>
 </main>
 <footer>Strumento didattico basato su dati storici: non è una diagnosi e non sostituisce il parere del medico.</footer>
@@ -166,7 +164,7 @@ const lbl = {id: "lbl", afterDatasetsDraw(c, _, o) {
 }};
 function chart(id, cfg) {
   if (charts[id]) charts[id].destroy();
-  cfg.plugins = [lbl]; cfg.options = Object.assign({responsive: true, maintainAspectRatio: false}, cfg.options);
+  cfg.plugins = [lbl, ring]; cfg.options = Object.assign({responsive: true, maintainAspectRatio: false}, cfg.options);
   charts[id] = new Chart($("#" + id), cfg);
 }
 const heart = `<svg viewBox="0 0 64 64"><path d="M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z" fill="#c8102e"/><path d="M8 33h15l4-9 7 19 5-10h17" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -175,31 +173,50 @@ const showConf = (c, m) => {
   $("#o2").innerHTML = `<div class="kpis">${m.map(x => kpi(x.f1_score.toFixed(3), `${x.algoritmo} · F1 medio (${x.configurazione})`)).join("")}</div>`
     + card("Migliore configurazione per algoritmo", tab(m)) + card(`Confronto completo (${c.length} configurazioni)`, tab(c));
 };
+const BANDE = [["0% - 25%", "#2C5E8A", "#fff"], ["25% - 50%", "#6BAED6", "#102a43"], ["50% - 75%", "#C93B52", "#fff"], ["75% - 100%", "#F28C9E", "#4a0f1a"]];
+const FNOME = ["Rischio molto basso", "Rischio medio-basso", "Rischio moderato", "Rischio elevato"];
+const fascia = x => x.previsione == 1 ? (x.probabilita_evento_percentuale <= 75 ? 2 : 3) : (x.probabilita_evento_percentuale <= 25 ? 0 : 1);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+function setEmails(l) { const d = $("#el"); d.innerHTML = ""; [...new Set(l || [])].filter(Boolean).forEach(e => { const o = document.createElement("option"); o.value = e; d.append(o); }); }
+const ring = {id: "ring", afterDatasetsDraw(c, _, o) {
+  if (!o.on) return; const ctx = c.ctx, a = c.chartArea, cx = (a.left + a.right) / 2, cy = (a.top + a.bottom) / 2;
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "700 11px 'Instrument Sans'";
+  c.data.datasets.forEach((d, di) => c.getDatasetMeta(di).data.forEach((el, k) => {
+    const pct = d.data[k] / o.total * 100; if (pct < 5) return;
+    const ang = (el.startAngle + el.endAngle) / 2, r = (el.innerRadius + el.outerRadius) / 2, x = el.x + Math.cos(ang) * r, y = el.y + Math.sin(ang) * r;
+    ctx.fillStyle = d.tc[k]; ctx.fillText(pct.toFixed(1) + "%", x, y - 7); ctx.fillText(`(${d.data[k]} ut.)`, x, y + 7);
+  }));
+  ctx.fillStyle = TX; ctx.font = "600 15px Fraunces, serif"; ctx.fillText("Totale", cx, cy - 11); ctx.fillText(o.total + " utenti", cx, cy + 11);
+  ctx.restore();
+}};
 const showRis = (mod, r) => {
-  const pos = r.filter(x => x.previsione == 1).length, med = r.reduce((a, x) => a + x.probabilita_evento_percentuale, 0) / r.length;
+  const n = r.length, pos = r.filter(x => x.previsione == 1).length, med = r.reduce((a, x) => a + x.probabilita_evento_percentuale, 0) / n;
+  const ext = BANDE.map((b, k) => ({n: r.filter(x => fascia(x) == k).length, col: b[1], tc: b[2], nome: "Fascia " + b[0]})).filter(x => x.n > 0);
+  const int = [{n: n - pos, col: "#4682B4", tc: "#fff", nome: "Classe 0 - Basso rischio"}, {n: pos, col: "#E85D75", tc: "#fff", nome: "Classe 1 - Rischio evento"}].filter(x => x.n > 0);
+  const ds = L => ({data: L.map(x => x.n), backgroundColor: L.map(x => x.col), tc: L.map(x => x.tc), lab: L.map(x => x.nome), borderColor: css("--card"), borderWidth: 3});
   $("#o3").innerHTML = card("Modello scelto automaticamente", `<div class="model">${heart}<div><strong>${mod.algoritmo}</strong><div class="msg">${mod.configurazione} · F1-score medio ${mod.f1_score}</div></div></div>`)
-    + `<div class="kpis">${kpi(r.length, "partecipanti analizzati")}${kpi(pos, "previsti in classe 1")}${kpi(med.toFixed(1) + "%", "probabilità media")}</div>`
-    + card("Probabilità per partecipante", `<div class="cv" style="height:${Math.max(340, r.length * 30)}px"><canvas id="gp"></canvas></div>
-      <div class="leg"><span><i style="background:#E85D75"></i>Classe 1</span><span><i style="background:#4682B4"></i>Classe 0</span><span>Linea tratteggiata: riferimento 50%</span></div>`)
-    + card("Risultati HeartVision", tab(r, {previsione: v => `<span class="b b${v}">Classe ${v}</span>`}));
-  chart("gp", {type: "bar", data: {labels: r.map(x => "Utente " + x.utente), datasets: [{data: r.map(x => x.probabilita_evento_percentuale),
-    backgroundColor: r.map(x => x.previsione == 1 ? "#E85D75" : "#4682B4"), borderRadius: 5}]},
-    options: {indexAxis: "y", scales: {x: {min: 0, max: 100, title: {display: true, text: "Probabilità stimata della classe 1 (%)"}}},
-      plugins: {legend: {display: false}, lbl: {ref: 50, text: i => `${r[i].probabilita_evento_percentuale.toFixed(2)}% - Classe ${r[i].previsione}`}}}});
+    + `<div class="kpis">${kpi(n, "partecipanti analizzati")}${kpi(pos, "previsti in classe 1")}${kpi(med.toFixed(1) + "%", "probabilità media")}</div>`
+    + card("Distribuzione per classe e fascia di rischio", `<div class="cv" style="height:430px"><canvas id="gp"></canvas></div>
+      <div class="leg">${[...int, ...ext].map(x => `<span><i style="background:${x.col}"></i>${x.nome} (${x.n} utenti)</span>`).join("")}</div>
+      <p class="msg">Anello interno: classi previste. Anello esterno: fasce di probabilità della classe 1.</p>`)
+    + card("Risultati HeartVision", tab(r.map(x => ({...x, fascia: fascia(x)})), {previsione: v => `<span class="b b${v}">Classe ${v}</span>`, fascia: v => `<span class="b f${v}">${FNOME[v]}</span>`}));
+  chart("gp", {type: "doughnut", data: {datasets: [ds(ext), ds(int)]},
+    options: {cutout: "34%", plugins: {legend: {display: false}, ring: {on: true, total: n},
+      tooltip: {callbacks: {title: () => "", label: c => `${c.dataset.lab[c.dataIndex]}: ${c.raw} utenti`}}}}});
 };
 
 $("#b1").onclick = () => run("#b1", "#m1", async () => {
   const fd = new FormData();
-  if ($("#f1").files[0]) fd.append("storico", $("#f1").files[0]);
   if ($("#f2").files[0]) fd.append("questionari", $("#f2").files[0]);
   const j = await api("/api/carica", {method: "POST", body: fd});
-  $("#o1").innerHTML = `<div class="kpis">${kpi(j.storico.righe.toLocaleString("it"), "pazienti nello storico")}${kpi(j.storico.eventi + "%", "eventi coronarici a 10 anni")}${kpi(j.questionari.righe, "partecipanti al questionario")}</div>`
+  setEmails(j.emails);
+  $("#o1").innerHTML = `<div class="kpis">${kpi(j.storico.righe.toLocaleString("it"), "pazienti nello storico")}${kpi(j.storico.eventi + "%", "eventi coronarici a 10 anni")}${kpi(j.questionari.righe, "partecipanti al questionario")}${kpi(j.emails ? "Sì" : "No", "email acquisite (analisi singola)")}</div>`
     + card("Dataset Framingham (pulito)", tab(j.storico.head)) + card("Questionari (convertiti e puliti)", tab(j.questionari.head));
 });
 const FR = [
-  ["Preparo i fold della cross-validation stratificata…", "Il KNN cerca i pazienti più simili a ciascun profilo…", "Standardizzo i dati: età, peso e pressione sulla stessa scala…"],
-  ["Gli alberi decisionali scelgono le domande giuste da porre…", "Gini o entropia? Provo entrambi i criteri di divisione…", "Fumo, colesterolo, ipertensione: i fattori di rischio sotto la lente…"],
-  ["La Random Forest chiede il parere a centinaia di alberi…", "Confronto accuracy, precision, recall, F1 e ROC-AUC…", "Un cuore batte circa 100.000 volte al giorno: la prevenzione conta."]];
+  ["Allineo le scale: ogni dato parla la stessa lingua…", "Il KNN interroga i vicini più simili a ogni paziente…", "Provo K diversi per trovare il giusto numero di vicini…", "Divido i pazienti in cinque gruppi equilibrati…"],
+  ["Gli alberi imparano a farsi le domande giuste…", "Gini contro entropia: una sfida di eleganza…", "Niente foglie troppo piccole: l'albero non deve imparare a memoria…", "Pressione, colesterolo, fumo: chi pesa di più sul rischio?…"],
+  ["Una foresta intera sta votando, albero dopo albero…", "Il bosco decide a maggioranza: più alberi, più prudenza…", "F1, recall e ROC-AUC: la bilancia della precisione…", "Ultimi battiti: scelgo la configurazione vincente…"]];
 const LH = `<svg class="lheart run" id="lh" viewBox="0 0 64 64"><path d="M32 57C10 41 4 29 4 20 4 12 10 7 17 7c6 0 11 3 15 9 4-6 9-9 15-9 7 0 13 5 13 13 0 9-6 21-28 37z" fill="#c8102e"/><path class="tr" id="tr" pathLength="1" d="M8 33h15l4-9 7 19 5-10h17"/></svg>`;
 let tm = null, fi = 0, pc = 0;
 const frase = () => { const g = FR[pc < 26 ? 0 : pc < 61 ? 1 : 2]; $("#ph").textContent = g[fi++ % g.length]; };
@@ -212,11 +229,12 @@ function loaderUpd(p) { pc = p; $("#pct").textContent = p + "%"; $("#bf").style.
 function loaderEnd() {
   clearInterval(tm); loaderUpd(100);
   $("#lh").classList.remove("run"); $("#tr").setAttribute("d", "M8 33h48"); $("#tr").style.strokeDashoffset = 0;  // battito fermo: linea dritta
-  $("#ph").textContent = "Confronto completato: i modelli sono pronti!";
+  $("#ph").textContent = "Tutto pronto: confronto completato con successo!";
 }
 const ripristina = s => {
   if (s.confronto) showConf(s.confronto, s.migliori.map(x => Object.fromEntries(["algoritmo", "configurazione", ...M].map(k => [k, x[k]]))));
   if (s.risultati) showRis(s.modello, s.risultati);
+  setEmails(s.emails);
 };
 async function seguiConfronto() {
   loaderStart();
@@ -238,7 +256,7 @@ $("#b3").onclick = () => run("#b3", "#m3", async () => { const j = await api("/a
 async function fattori() {
   try {
     const j = await api("/api/fattori"); $("#n1").textContent = "";
-    chart("g1", {type: "bar", data: {labels: j.map(x => x.fattore), datasets: [{data: j.map(x => x.rischio), backgroundColor: "#e0334f", borderRadius: 8}]},
+    chart("g1", {type: "bar", data: {labels: j.map(x => x.fattore), datasets: [{data: j.map(x => x.rischio), backgroundColor: "rgba(121,8,150,.85)", borderRadius: 4}]},
       options: {scales: {y: {min: 0, max: Math.max(...j.map(x => x.rischio)) * 1.2, title: {display: true, text: "Percentuale di evento coronarico (%)"}}},
         plugins: {legend: {display: false}, lbl: {text: i => j[i].rischio.toFixed(1) + "%"}}}});
   } catch (e) { $("#n1").className = "msg err"; $("#n1").textContent = e.message; }
@@ -251,6 +269,30 @@ $("#nav").onclick = e => {
 };
 api("/api/stato").then(s => {
   if (s.calcolo === "running") run("#b2", "#m2", seguiConfronto); else ripristina(s);
+});
+
+function showPaz(j) {
+  const el = j.numeriche.filter(x => x.elevato), f = fascia({previsione: j.classe, probabilita_evento_percentuale: j.percentuale});
+  $("#o5").innerHTML = card(`Utente ${j.id}`, `<div class="model">${heart}<div><strong>${esc(j.email)}</strong><div class="msg"><span class="b b${j.classe}">Classe ${j.classe}</span> <span class="b f${f}">${FNOME[f]}</span></div></div></div>`)
+    + `<div class="kpis">${kpi(j.percentuale.toFixed(2) + "%", "probabilità stimata della classe 1")}${kpi(el.length + " / " + j.numeriche.length, "variabili sopra il 90° percentile")}${kpi(j.indicatori.filter(x => x.presente).length + " / " + j.indicatori.length, "indicatori dichiarati presenti")}</div>`
+    + card("Confronto con lo storico Framingham", `<div class="cv" style="height:300px"><canvas id="gn"></canvas></div>
+      <div class="leg"><span><i style="background:#FF27BE"></i>Sopra il 90° percentile</span><span><i style="background:#4682B4"></i>Entro il 90° percentile</span><span>Linea tratteggiata: 90° percentile</span></div>`
+      + `<p class="msg">${el.length ? "Valori elevati: " + el.map(x => x.nome).join(", ") + "." : "Nessuna delle caratteristiche selezionate supera il 90° percentile."}</p>`
+      + tab(j.numeriche.map(x => ({variabile: x.nome, valore: x.valore, "90° percentile storico": x.limite, stato: x.elevato ? "SUPERIORE AL 90° PERCENTILE" : "Non supera il 90° percentile"}))))
+    + card("Tutte le caratteristiche", tab(Object.entries(j.caratteristiche).map(([c, v]) => ({caratteristica: c, valore: v}))));
+  chart("gn", {type: "bar", data: {labels: j.numeriche.map(x => x.nome), datasets: [{data: j.numeriche.map(x => x.rango), backgroundColor: j.numeriche.map(x => x.elevato ? "#FF27BE" : "#4682B4"), borderRadius: 4}]},
+    options: {indexAxis: "y", scales: {x: {min: 0, max: 115, title: {display: true, text: "Posizione percentile rispetto a Framingham"}}},
+      plugins: {legend: {display: false}, lbl: {ref: 90, text: i => "Valore: " + j.numeriche[i].valore}}}});
+}
+$("#em").oninput = () => { if ($("#idp")) $("#o5").innerHTML = ""; };
+$("#b5").onclick = () => run("#b5", "#m5", async () => {
+  const q = new URLSearchParams({email: $("#em").value, id: $("#idp") ? $("#idp").value : ""});
+  const j = await api("/api/partecipante?" + q);
+  if (j.ids) {
+    $("#o5").innerHTML = card("Email presente più volte", `<p class="msg">Seleziona l'ID del partecipante e premi di nuovo «Analizza».</p><select id="idp">${j.ids.map(x => `<option>${x}</option>`).join("")}</select>`);
+    throw new Error("Scegli un ID per proseguire.");
+  }
+  showPaz(j);
 });
 </script>
 </body>
