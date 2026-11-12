@@ -166,3 +166,15 @@ La suddivisione dei ruoli ha rappresentato un'organizzazione del lavoro e non un
 Il gruppo ha inoltre condiviso la gestione della repository GitHub, il ragionamento progettuale, la definizione dell'architettura e la strutturazione del programma. Le scelte implementative sono state discusse e sviluppate insieme, con l'obiettivo di realizzare un software chiaro, semplice da utilizzare e ben organizzato, mantenendo allo stesso tempo un'impostazione tecnica, funzionale e orientata alla qualità del codice.
 
 **FuturVision Labs — Un progetto sviluppato attraverso competenze complementari, collaborazione e visione condivisa.**
+
+📬 Contatti
+
+Vuoi conoscere meglio il progetto o entrare in contatto con il team? Puoi trovarci su LinkedIn:
+
+Luca Marchese: LinkedIn
+
+Giuseppe Giacco: LinkedIn
+
+Matteo Criscuolo: LinkedIn
+
+Valentina Avitabile: LinkedIn
