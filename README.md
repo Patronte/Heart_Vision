@@ -177,4 +177,4 @@ Giuseppe Giacco — <a href="https://www.linkedin.com/in/giuseppe-giacco-72b4442
 
 Matteo Criscuolo — <a href="https://www.linkedin.com/in/matteo-criscuolo-4370a4245/" target="_blank">Visita il profilo LinkedIn</a>
 
-Valentina Avitabile — <a href="https://www.linkedin.com/in/valentina-avitabile-96b32741b/" target="_blank">Visita il profilo LinkedIn</a>
+Valentina Avitabile — <a href="https://www.linkedin.com/in/valentina-avitabile/" target="_blank">Visita il profilo LinkedIn</a>
