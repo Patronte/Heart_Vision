@@ -169,12 +169,12 @@ Il gruppo ha inoltre condiviso la gestione della repository GitHub, il ragioname
 
 📬 Contatti
 
-Vuoi conoscere meglio il progetto o entrare in contatto con il team? Puoi trovarci su LinkedIn:
+Vuoi conoscere meglio il progetto o entrare in contatto con il team? Seguici su LinkedIn:
 
-Luca Marchese: LinkedIn
+Luca Marchese — <a href="https://www.linkedin.com/in/luca-marchese-141910255/" target="_blank">Visita il profilo LinkedIn</a>
 
-Giuseppe Giacco: LinkedIn
+Giuseppe Giacco — <a href="https://www.linkedin.com/in/giuseppe-giacco-72b444296/" target="_blank">Visita il profilo LinkedIn</a>
 
-Matteo Criscuolo: LinkedIn
+Matteo Criscuolo — <a href="https://www.linkedin.com/in/matteo-criscuolo-4370a4245/" target="_blank">Visita il profilo LinkedIn</a>
 
-Valentina Avitabile: LinkedIn
+Valentina Avitabile — <a href="https://www.linkedin.com/in/valentina-avitabile-96b32741b/" target="_blank">Visita il profilo LinkedIn</a>
