@@ -1145,7 +1145,7 @@ def esegui_previsioni():  # Addestra automaticamente il modello con F1-score mig
 
 # VISUALIZZAZIONE DEI GRAFICI
 
-def mostra_grafici():  # Visualizza il grafico fucsia dei fattori di rischio
+def mostra_grafici():  # Visualizza il grafico dei fattori di rischio in stile scuro
 
     if "df_X" not in globals():  # Verifica che lo storico sia stato caricato
         print("Prima carica i dataset (opzione 1).")
@@ -1178,46 +1178,61 @@ def mostra_grafici():  # Visualizza il grafico fucsia dei fattori di rischio
         ascending=False  # Ordina i fattori per percentuale decrescente
     )
 
-    plt.figure(figsize=(11, 6))  # Crea una nuova figura
+    # CREAZIONE DELLA FIGURA CON SFONDO SCURO LEGGERO
+    figura, asse = plt.subplots(figsize=(11, 6))
+    
+    figura.patch.set_facecolor("#1E1E2F")  # Sfondo esterno scuro
+    asse.set_facecolor("#252538")      # Sfondo interno dell'area grafico
 
-    bars = plt.bar(
+    # Disegna le barre (usiamo un colore elegante in linea con il tema, es. un viola/magenta scuro ma luminoso o un blu/rosa coerente)
+    bars = asse.bar(
         df_fattori_plot["Fattore"],
         df_fattori_plot["Rischio percentuale (%)"],
-        color="#790896",
-        alpha=0.85,
+        color="#E85D75",  # Colore ripreso dal tema dell'app (rosso corallo/rosa)
+        alpha=0.9,
         width=0.55
-    )  # Disegna le barre dei fattori
+    )
 
-    plt.title(
+    # Titolo ed etichette con testo bianco
+    asse.set_title(
         "HEARTVISION - Incidenza dei Fattori di Rischio a 10 Anni",
         fontsize=14,
         fontweight="bold",
+        color="white",
         pad=15
     )
 
-    plt.xlabel("Fattore di Rischio", fontsize=12, labelpad=10)
-    plt.ylabel("Percentuale di Evento Coronarico (%)", fontsize=12)
+    asse.set_xlabel("Fattore di Rischio", fontsize=12, fontweight="bold", color="white", labelpad=10)
+    asse.set_ylabel("Percentuale di Evento Coronarico (%)", fontsize=12, fontweight="bold", color="white")
 
-    plt.ylim(
+    asse.set_ylim(
         0,
         max(df_fattori_plot["Rischio percentuale (%)"]) * 1.2
-    )  # Lascia spazio sopra le barre
+    )
 
-    for bar in bars:  # Aggiunge le percentuali sopra ogni barra
+    # Configurazione colori degli assi e dei tick in bianco
+    asse.tick_params(axis='x', colors='white', labelsize=10)
+    asse.tick_params(axis='y', colors='white', labelsize=10)
 
-        yval = bar.get_height()  # Recupera l'altezza della barra
+    # Modifica il colore dei bordi del grafico (spines) per armonizzarli con lo sfondo scuro
+    for spine in asse.spines.values():
+        spine.set_edgecolor("#555566")
 
-        plt.text(
+    # Aggiunge le percentuali sopra ogni barra con testo bianco
+    for bar in bars:
+        yval = bar.get_height()
+        asse.text(
             bar.get_x() + bar.get_width() / 2.0,
             yval + 0.5,
             f"{yval:.1f}%",
             ha="center",
             va="bottom",
             fontsize=10,
-            fontweight="bold"
+            fontweight="bold",
+            color="white"
         )
 
-    plt.xticks(rotation=0, fontsize=10, fontweight="bold")
+    plt.xticks(rotation=0, fontweight="bold")
     plt.tight_layout()
     plt.show()
 
@@ -1237,7 +1252,7 @@ def mostra_risultati():  # Mostra la tabella e il grafico delle previsioni
 
 # GRAFICO DELLE PREVISIONI SUI QUESTIONARI
 
-def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello con testi dritti e leggibili
+def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello in stile scuro coordinato
 
     if "risultati" not in globals() or risultati is None or risultati.empty:
         print("Prima esegui le previsioni sul CSV (opzione 4).")
@@ -1256,27 +1271,27 @@ def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello con t
     n_c1_b1 = len(c1[c1 <= 75])   # Classe 1: rischio moderato (50% - 75%)
     n_c1_b2 = len(c1[c1 > 75])    # Classe 1: rischio elevato (75% - 100%)
 
-    # Costruzione dinamica anello interno (Macro Classi)
+    # Costruzione dinamica anello interno (Macro Classi) con palette scura/coordinata
     valori_interno = []
     colori_interno = []
     etichette_interno_legenda = []
 
     if len(c0) > 0:
         valori_interno.append(len(c0))
-        colori_interno.append("#4682B4")
+        colori_interno.append("#3A86FF")  # Blu coordinato stile web
         etichette_interno_legenda.append(f"Classe 0 - Basso Rischio ({len(c0)} utenti)")
 
     if len(c1) > 0:
         valori_interno.append(len(c1))
-        colori_interno.append("#E85D75")
+        colori_interno.append("#E85D75")  # Rosso corallo coordinato
         etichette_interno_legenda.append(f"Classe 1 - Rischio Evento ({len(c1)} utenti)")
 
-    # Costruzione dinamica anello esterno (Fasce di probabilità)
+    # Costruzione dinamica anello esterno (Fasce di probabilità) con sfumature coordinate
     fasce_config = [
-        (n_c0_b1, "#2C5E8A", "Fascia 0% - 25%"),
-        (n_c0_b2, "#6BAED6", "Fascia 25% - 50%"),
-        (n_c1_b1, "#C93B52", "Fascia 50% - 75%"),
-        (n_c1_b2, "#F28C9E", "Fascia 75% - 100%")
+        (n_c0_b1, "#1D3557", "Fascia 0% - 25%"),
+        (n_c0_b2, "#457B9D", "Fascia 25% - 50%"),
+        (n_c1_b1, "#D90429", "Fascia 50% - 75%"),
+        (n_c1_b2, "#EF476F", "Fascia 75% - 100%")
     ]
 
     valori_esterno = []
@@ -1296,61 +1311,72 @@ def mostra_grafico_questionari():  # Visualizza il grafico a doppio anello con t
             return ""
         return f"{pct:.1f}%\n({n_persone} ut.)"
 
+    # Creazione della figura con sfondo scuro leggero
     fig, ax = plt.subplots(figsize=(12, 7.5))
+    fig.patch.set_facecolor("#1E1E2F")
+    ax.set_facecolor("#252538")
 
-    # 1. ANELLO ESTERNO (Fasce di probabilità - testi orizzontali)
+    # 1. ANELLO ESTERNO (Fasce di probabilità)
     wedges_ext, _, autotexts_ext = ax.pie(
         valori_esterno,
         radius=1.15,
         colors=colori_esterno,
         startangle=90,
         counterclock=False,
-        wedgeprops=dict(width=0.35, edgecolor="white", linewidth=2),
+        wedgeprops=dict(width=0.35, edgecolor="#1E1E2F", linewidth=2),
         autopct=formatta_etichetta_spicchio,
         pctdistance=0.82,
-        textprops=dict(color="black", fontsize=9, fontweight="bold", ha="center", va="center")
+        textprops=dict(color="white", fontsize=9, fontweight="bold", ha="center", va="center")
     )
 
-    # 2. ANELLO INTERNO (Macro Classi - testi orizzontali)
+    # 2. ANELLO INTERNO (Macro Classi)
     wedges_int, _, autotexts_int = ax.pie(
         valori_interno,
         radius=0.80,
         colors=colori_interno,
         startangle=90,
         counterclock=False,
-        wedgeprops=dict(width=0.35, edgecolor="white", linewidth=2),
+        wedgeprops=dict(width=0.35, edgecolor="#1E1E2F", linewidth=2),
         autopct=formatta_etichetta_spicchio,
         pctdistance=0.74,
-        textprops=dict(color="black", fontsize=10, fontweight="bold", ha="center", va="center")
+        textprops=dict(color="white", fontsize=10, fontweight="bold", ha="center", va="center")
     )
 
-    # Testo centrale nel foro della ciambella con il totale dei partecipanti
+    # Testo centrale nel foro della ciambella con il totale dei partecipanti (testo bianco)
     ax.text(
         0, 0,
         f"Totale\n{totale_utenti} Utenti",
         ha="center", va="center",
-        fontsize=12, fontweight="bold", color="#333333"
+        fontsize=12, fontweight="bold", color="white"
     )
 
-    # Legenda laterale completa per leggere subito classi e fasce di rischio
+    # Legenda laterale con sfondo scuro e testi bianchi
     tutti_wedges = wedges_int + wedges_ext
     tutte_etichette = etichette_interno_legenda + etichette_esterno_legenda
 
-    ax.legend(
+    legenda = ax.legend(
         tutti_wedges,
         tutte_etichette,
-        title="Legenda Classi e Fasce di Probabilità",
+        title="Legenda Classi e Fasce di Rischio",
         title_fontsize=10,
         fontsize=9,
         loc="center left",
         bbox_to_anchor=(1.02, 0.5),
-        frameon=True
+        frameon=True,
+        facecolor="#252538",
+        edgecolor="#555566"
     )
+    
+    # Rende bianchi i testi della legenda
+    plt.setp(legenda.get_texts(), color="white")
+    legenda.get_title().set_color("white")
 
+    # Titolo del grafico in bianco
     ax.set_title(
         "HEARTVISION - Distribuzione Utenti per Classe e Fascia di Rischio",
         fontsize=14,
         fontweight="bold",
+        color="white",
         pad=15
     )
 
