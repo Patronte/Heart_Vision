@@ -1,3 +1,5 @@
+<img src="Slides\Presentazione_HeartVision_page-0001.jpg" alt="descrizione dell'immagine">   
+
 # Heart Vision ♥
 
 **Software di analisi e previsione degli eventi coronarici attraverso il Machine Learning**
